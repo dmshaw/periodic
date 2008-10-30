@@ -11,6 +11,7 @@ static struct periodic_t
 {
   unsigned int interval;
   time_t next_occurance;
+  time_t base_time;
   void (*routine)(time_t,void *);
   void *arg;
   struct periodic_t *next;
@@ -23,13 +24,20 @@ static pthread_t *thread;
 static pthread_t timewarp;
 static unsigned int timewarp_interval;
 static unsigned int timewarp_warptime;
+static time_t timewarp_base;
 
 static void
 enqueue(struct periodic_t *event)
 {
   /* Reschedule it */
-  event->next_occurance=time(NULL)+event->interval;
+
   pthread_mutex_lock(&event_lock);
+
+  if(event->base_time!=timewarp_base)
+    event->base_time=timewarp_base;
+
+  event->next_occurance=time(NULL)+event->interval;
+
   event->next=events;
   events=event;
   pthread_mutex_unlock(&event_lock);
@@ -133,12 +141,12 @@ periodic_thread(void *foo)
       
       now=time(NULL);
 
-     /* Check, as we might have been woken up early. */
+      /* Check, as we might have been woken up early. */
 
-     if(event->next_occurance<=now)
-       (*event->routine)(now,event->arg);
+      if(event->next_occurance<=now)
+	(*event->routine)(now,event->arg);
 
-     enqueue(event);
+      enqueue(event);
     }
 
   /* Never reached */
@@ -149,6 +157,8 @@ static void *
 timewarp_thread(void *foo)
 {
   time_t last_time=time(NULL);
+
+  timewarp_base=last_time;
 
   for(;;)
     {
@@ -176,9 +186,14 @@ timewarp_thread(void *foo)
 	  printf("recalibrate\n");
 	  pthread_mutex_lock(&event_lock);
 
-	  for(event=events;event;event=event->next)
-	    ;
+	  timewarp_base=time(NULL);
 
+	  /* Find every event that has a base time that doesn't match,
+	     and recalculate its next_occurance */
+
+	  for(event=events;event;event=event->next)
+	    if(event->base_time!=timewarp_base)
+	      event->next_occurance=timewarp_base+event->interval;
 
 	  pthread_cond_broadcast(&event_cond);
 	  pthread_mutex_unlock(&event_lock);
