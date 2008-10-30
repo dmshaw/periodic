@@ -5,6 +5,7 @@ static const char RCSID[]="$Id$";
 #include <time.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <periodic.h>
 
 static struct periodic_t
 {
@@ -18,6 +19,8 @@ static struct periodic_t
 
 static pthread_mutex_t event_lock=PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t event_cond=PTHREAD_COND_INITIALIZER;
+static unsigned int concurrency;
+static pthread_t *thread;
 
 static void
 unbusy_event(void *e)
@@ -45,14 +48,13 @@ periodic_thread(void *foo)
 	    next_event=event;
 	  }
 
-      if(next_event)
-	next_event->busy=1;
-
       /* Now wait for the event time to arrive. */
 
       if(next_event)
 	{
 	  struct timespec timeout;
+
+	  next_event->busy=1;
 
 	  timeout.tv_sec=next_occurance;
 	  timeout.tv_nsec=0;
@@ -60,6 +62,7 @@ periodic_thread(void *foo)
 	  if(pthread_cond_timedwait(&event_cond,&event_lock,&timeout)==0)
 	    {
 	      /* A new event showed up, so recalculate. */
+	      unbusy_event(next_event);
 	      continue;
 	    }
 	}
@@ -79,7 +82,7 @@ periodic_thread(void *foo)
 
      now=time(NULL);
 
-     /* Check, as we might have been woken up early */
+     /* Check, as we might have been woken up early. */
      if(next_event->next_occurance<=now)
        {
 	 /* We unlock while executing, as that can take any amount of
@@ -95,6 +98,8 @@ periodic_thread(void *foo)
 
 	 pthread_mutex_lock(&event_lock);
        }
+     else
+       unbusy_event(next_event);
     }
 }
 
@@ -111,7 +116,7 @@ periodic_add(unsigned int interval,void (*routine)(time_t,void *),void *arg)
     }
 
   event->interval=interval;
-  event->next_occurance=0;
+  event->next_occurance=time(NULL)+interval;
   event->routine=routine;
   event->arg=arg;
 
@@ -122,4 +127,43 @@ periodic_add(unsigned int interval,void (*routine)(time_t,void *),void *arg)
   pthread_mutex_unlock(&event_lock);
 
   return event;
+}
+
+int
+periodic_start(unsigned int threads)
+{
+  if(threads==0)
+    {
+      thread=malloc(sizeof(pthread_t));
+      if(!thread)
+	{
+	  errno=ENOMEM;
+	  return -1;
+	}
+
+      concurrency=1;
+      thread[0]=pthread_self();
+
+      periodic_thread(NULL);
+    }
+  else
+    {
+      unsigned int i;
+      int err;
+
+      thread=malloc(sizeof(pthread_t)*threads);
+      if(!thread)
+	{
+	  errno=ENOMEM;
+	  return -1;
+	}
+
+      for(i=0;i<threads;i++)
+	{
+	  err=pthread_create(&thread[i],NULL,periodic_thread,NULL);
+	  if(err!=0)
+	    abort();
+	  concurrency++;
+	}
+    }
 }
