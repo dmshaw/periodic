@@ -12,7 +12,7 @@ static struct periodic_t
   unsigned int interval;
   time_t next_occurance;
   time_t base_time;
-  void (*routine)(time_t,void *);
+  void (*callback)(time_t,void *);
   void *arg;
   struct periodic_t *next;
 } *events=NULL;
@@ -25,6 +25,8 @@ static pthread_t timewarp;
 static unsigned int timewarp_interval;
 static unsigned int timewarp_warptime;
 static time_t timewarp_base;
+static void (*timewarp_callback)(void *);
+static void *timewarp_arg;
 
 static void
 enqueue(struct periodic_t *event)
@@ -33,27 +35,37 @@ enqueue(struct periodic_t *event)
 
   pthread_mutex_lock(&event_lock);
 
+  printf("adding event %p\n",event);
+
   if(event->base_time!=timewarp_base)
     event->base_time=timewarp_base;
 
   event->next_occurance=time(NULL)+event->interval;
 
+  if(event==events)
+    abort();
+
   event->next=events;
   events=event;
+
   pthread_mutex_unlock(&event_lock);
 }
 
 static struct periodic_t *
 dequeue(void)
 {  
-  struct periodic_t *event,*last=NULL,*last_event,*next_event=NULL;
-  time_t next_occurance=0x7FFFFFFF; /* 2038 */
+  struct periodic_t *last_event,*next_event;
   int err;
 
   pthread_mutex_lock(&event_lock);
 
   for(;;)
     {
+      struct periodic_t *event,*last=NULL;
+      time_t next_occurance=0x7FFFFFFF; /* 2038 */
+
+      next_event=NULL;
+
       /* Find the next event to occur */
       for(event=events;event;last=event,event=event->next)
 	if(event->next_occurance<next_occurance)
@@ -114,11 +126,19 @@ dequeue(void)
   if(next_event)
     {
       if(last_event)
-	last_event->next=next_event->next;
+	{
+	  printf("last event\n");
+	  last_event->next=next_event->next;
+	}
       else
-	events=next_event->next;
+	{
+	  printf("next event\n");
+	  events=next_event->next;
+	}
 
       next_event->next=NULL;
+
+      printf("removing event %p\n",next_event);
     }
 
   pthread_mutex_unlock(&event_lock);
@@ -144,7 +164,7 @@ periodic_thread(void *foo)
       /* Check, as we might have been woken up early. */
 
       if(event->next_occurance<=now)
-	(*event->routine)(now,event->arg);
+	(*event->callback)(now,event->arg);
 
       enqueue(event);
     }
@@ -197,6 +217,9 @@ timewarp_thread(void *foo)
 
 	  pthread_cond_broadcast(&event_cond);
 	  pthread_mutex_unlock(&event_lock);
+
+	  if(timewarp_callback)
+	    (timewarp_callback)(timewarp_arg);
 	}
 
       last_time=now;
@@ -208,7 +231,7 @@ timewarp_thread(void *foo)
 
 struct periodic_t *
 periodic_add(unsigned int interval,unsigned int flags,
-	     void (*routine)(time_t,void *),void *arg)
+	     void (*callback)(time_t,void *),void *arg)
 {
   struct periodic_t *event;
 
@@ -220,7 +243,7 @@ periodic_add(unsigned int interval,unsigned int flags,
     }
 
   event->interval=interval;
-  event->routine=routine;
+  event->callback=callback;
   event->arg=arg;
   if(flags&PERIODIC_DELAY)
     event->next_occurance=time(NULL)+interval;
@@ -338,7 +361,8 @@ periodic_stop(void)
 }
 
 int
-periodic_timewarp(unsigned int interval,unsigned int warptime)
+periodic_timewarp(unsigned int interval,unsigned int warptime,
+		  void (*callback)(void *),void *arg)
 {
   struct timewarp *t;
 
@@ -348,6 +372,8 @@ periodic_timewarp(unsigned int interval,unsigned int warptime)
 
       timewarp_interval=interval;
       timewarp_warptime=warptime;
+      timewarp_callback=callback;
+      timewarp_arg=arg;
 
       err=pthread_create(&timewarp,NULL,timewarp_thread,NULL);
       if(err!=0)
