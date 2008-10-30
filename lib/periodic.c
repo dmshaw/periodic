@@ -21,6 +21,9 @@ static pthread_mutex_t event_lock=PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t event_cond=PTHREAD_COND_INITIALIZER;
 static unsigned int concurrency;
 static pthread_t *thread;
+static pthread_t timewarp;
+static unsigned int timewarp_interval;
+static unsigned int timewarp_warptime;
 
 static void
 unbusy_event(void *e)
@@ -101,10 +104,53 @@ periodic_thread(void *foo)
      else
        unbusy_event(next_event);
     }
+
+  /* Never reached */
+  return NULL;
+}
+
+static void *
+timewarp_thread(void *foo)
+{
+  time_t last_time=time(NULL);
+
+  for(;;)
+    {
+      time_t now;
+      unsigned int remaining=timewarp_interval;
+
+      printf("sleeping\n");
+
+      while(remaining)
+	remaining=sleep(remaining);
+
+      now=time(NULL);
+
+      /* last_time+timewarp->interval is where we should be, if there
+	 was no timewarp. */
+
+      if(now>last_time+timewarp_interval+timewarp_warptime
+	 || now<last_time+timewarp_interval-timewarp_warptime)
+	{
+	  /* We've jumped more than warptime seconds, so wake everyone
+	     up and make them recalibrate. */
+
+	  printf("recalibrate\n");
+	  pthread_mutex_lock(&event_lock);
+	  pthread_cond_broadcast(&event_cond);
+	  pthread_mutex_unlock(&event_lock);
+	}
+
+      last_time=now;
+    }
+
+  /* Never reached */
+  return NULL;
 }
 
 struct periodic_t *
-periodic_add(unsigned int interval,void (*routine)(time_t,void *),void *arg)
+periodic_add(unsigned int interval,unsigned int flags,
+	     void (*routine)(time_t,void *),void *arg)
 {
   struct periodic_t *event;
 
@@ -123,14 +169,14 @@ periodic_add(unsigned int interval,void (*routine)(time_t,void *),void *arg)
   pthread_mutex_lock(&event_lock);
   event->next=events;
   events=event;
-  pthread_cond_signal(&event_cond);
+  pthread_cond_broadcast(&event_cond);
   pthread_mutex_unlock(&event_lock);
 
   return event;
 }
 
 int
-periodic_start(unsigned int threads)
+periodic_start(unsigned int threads,unsigned int flags)
 {
   if(threads==0)
     {
@@ -149,7 +195,6 @@ periodic_start(unsigned int threads)
   else
     {
       unsigned int i;
-      int err;
 
       thread=malloc(sizeof(pthread_t)*threads);
       if(!thread)
@@ -160,10 +205,37 @@ periodic_start(unsigned int threads)
 
       for(i=0;i<threads;i++)
 	{
+	  int err;
+
 	  err=pthread_create(&thread[i],NULL,periodic_thread,NULL);
 	  if(err!=0)
 	    abort();
 	  concurrency++;
 	}
     }
+
+
+}
+
+int
+periodic_timewarp(unsigned int interval,unsigned int warptime)
+{
+  struct timewarp *t;
+
+  if(interval)
+    {
+      int err;
+
+      timewarp_interval=interval;
+      timewarp_warptime=warptime;
+
+      err=pthread_create(&timewarp,NULL,timewarp_thread,NULL);
+      if(err!=0)
+	{
+	  errno=err;
+	  return -1;
+	}
+    }
+
+  return 0;
 }
