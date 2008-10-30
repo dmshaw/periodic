@@ -9,7 +9,6 @@ static const char RCSID[]="$Id$";
 
 static struct periodic_t
 {
-  int busy;
   unsigned int interval;
   time_t next_occurance;
   void (*routine)(time_t,void *);
@@ -26,30 +25,34 @@ static unsigned int timewarp_interval;
 static unsigned int timewarp_warptime;
 
 static void
-unbusy_event(void *e)
+enqueue(struct periodic_t *event)
 {
-  struct periodic_t *event=e;
-
-  event->busy=0;
+  /* Reschedule it */
+  event->next_occurance=time(NULL)+event->interval;
+  pthread_mutex_lock(&event_lock);
+  event->next=events;
+  events=event;
+  pthread_mutex_unlock(&event_lock);
 }
 
-static void *
-periodic_thread(void *foo)
-{
+static struct periodic_t *
+dequeue(void)
+{  
+  struct periodic_t *event,*last=NULL,*last_event,*next_event=NULL;
+  time_t next_occurance=0x7FFFFFFF; /* 2038 */
+  int err;
+
   pthread_mutex_lock(&event_lock);
 
   for(;;)
     {
-      struct periodic_t *event,*next_event=NULL;
-      time_t now,next_occurance=0x7FFFFFFF; /* 2038 */
-      int err;
-
       /* Find the next event to occur */
-      for(event=events;event;event=event->next)
-	if(!event->busy && event->next_occurance<next_occurance)
+      for(event=events;event;last=event,event=event->next)
+	if(event->next_occurance<next_occurance)
 	  {
 	    next_occurance=event->next_occurance;
 	    next_event=event;
+	    last_event=last;
 	  }
 
       /* Now wait for the event time to arrive. */
@@ -57,8 +60,6 @@ periodic_thread(void *foo)
       if(next_event)
 	{
 	  struct timespec timeout;
-
-	  next_event->busy=1;
 
 	  timeout.tv_sec=next_occurance;
 	  timeout.tv_nsec=0;
@@ -73,7 +74,6 @@ periodic_thread(void *foo)
 	    {
 	      printf("woken up!\n");
 	      /* A new event showed up, so recalculate. */
-	      unbusy_event(next_event);
 	      continue;
 	    }
 	}
@@ -97,28 +97,48 @@ periodic_thread(void *foo)
 	    abort();
 	}
 
-      /* Execute */
+      /* If we get to here, we have an event, and its time has been
+	 reached. */
 
-     now=time(NULL);
+      break;
+    }
+
+  if(next_event)
+    {
+      if(last_event)
+	last_event->next=next_event->next;
+      else
+	events=next_event->next;
+
+      next_event->next=NULL;
+    }
+
+  pthread_mutex_unlock(&event_lock);
+  
+  return next_event;
+}
+
+static void *
+periodic_thread(void *foo)
+{
+  for(;;)
+    {
+      struct periodic_t *event;
+      time_t now;
+      int err;
+
+      event=dequeue();
+
+      /* Execute it */
+      
+      now=time(NULL);
 
      /* Check, as we might have been woken up early. */
-     if(next_event->next_occurance<=now)
-       {
-	 /* We unlock while executing, as that can take any amount of
-	    time, and other periodic threads may want to work the
-	    event list while it executes. */
-	 pthread_mutex_unlock(&event_lock);
 
-	 pthread_cleanup_push(unbusy_event,next_event);
-	 (*next_event->routine)(now,next_event->arg);
-	 /* Reschedule it */
-	 next_event->next_occurance=time(NULL)+next_event->interval;
-	 pthread_cleanup_pop(1);
+     if(event->next_occurance<=now)
+       (*event->routine)(now,event->arg);
 
-	 pthread_mutex_lock(&event_lock);
-       }
-     else
-       unbusy_event(next_event);
+     enqueue(event);
     }
 
   /* Never reached */
@@ -156,17 +176,8 @@ timewarp_thread(void *foo)
 	  printf("recalibrate\n");
 	  pthread_mutex_lock(&event_lock);
 
-
-
-
-
 	  for(event=events;event;event=event->next)
-	    if(event->busy)
-	      {
-
-
-	      }
-
+	    ;
 
 
 	  pthread_cond_broadcast(&event_cond);
@@ -194,9 +205,10 @@ periodic_add(unsigned int interval,unsigned int flags,
     }
 
   event->interval=interval;
-  event->next_occurance=time(NULL)+interval;
   event->routine=routine;
   event->arg=arg;
+  if(flags&PERIODIC_DELAY)
+    event->next_occurance=time(NULL)+interval;
 
   pthread_mutex_lock(&event_lock);
   event->next=events;
