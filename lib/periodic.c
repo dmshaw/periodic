@@ -42,6 +42,7 @@ periodic_thread(void *foo)
     {
       struct periodic_t *event,*next_event=NULL;
       time_t now,next_occurance=0x7FFFFFFF; /* 2038 */
+      int err;
 
       /* Find the next event to occur */
       for(event=events;event;event=event->next)
@@ -62,8 +63,15 @@ periodic_thread(void *foo)
 	  timeout.tv_sec=next_occurance;
 	  timeout.tv_nsec=0;
 
-	  if(pthread_cond_timedwait(&event_cond,&event_lock,&timeout)==0)
+	  pthread_cleanup_push((void *)pthread_mutex_unlock,&event_lock);
+
+	  err=pthread_cond_timedwait(&event_cond,&event_lock,&timeout);
+
+	  pthread_cleanup_pop(0);
+
+	  if(err==0)
 	    {
+	      printf("woken up!\n");
 	      /* A new event showed up, so recalculate. */
 	      unbusy_event(next_event);
 	      continue;
@@ -72,8 +80,16 @@ periodic_thread(void *foo)
       else
 	{
 	  /* Wait forever */
-	  if(pthread_cond_wait(&event_cond,&event_lock)==0)
+
+	  pthread_cleanup_push((void *)pthread_mutex_unlock,&event_lock);
+
+	  err=pthread_cond_wait(&event_cond,&event_lock);
+
+	  pthread_cleanup_pop(0);
+
+	  if(err==0)
 	    {
+	      printf("woken up!\n");
 	      /* A new event showed up, so recalculate. */
 	      continue;
 	    }
@@ -132,11 +148,27 @@ timewarp_thread(void *foo)
       if(now>last_time+timewarp_interval+timewarp_warptime
 	 || now<last_time+timewarp_interval-timewarp_warptime)
 	{
+	  struct periodic_t *event;
+
 	  /* We've jumped more than warptime seconds, so wake everyone
 	     up and make them recalibrate. */
 
 	  printf("recalibrate\n");
 	  pthread_mutex_lock(&event_lock);
+
+
+
+
+
+	  for(event=events;event;event=event->next)
+	    if(event->busy)
+	      {
+
+
+	      }
+
+
+
 	  pthread_cond_broadcast(&event_cond);
 	  pthread_mutex_unlock(&event_lock);
 	}
@@ -213,8 +245,69 @@ periodic_start(unsigned int threads,unsigned int flags)
 	  concurrency++;
 	}
     }
+}
 
+int
+periodic_stop(void)
+{
+  unsigned int i;
+  int err;
+  struct periodic_t *event;
 
+  /* Send a cancel to each thread */
+
+  for(i=0;i<concurrency;i++)
+    {
+      int err;
+
+      err=pthread_cancel(thread[i]);
+      if(err!=0)
+	goto fail;
+    }
+
+  if(timewarp_interval)
+    {
+      err=pthread_cancel(timewarp);
+      if(err!=0)
+	goto fail;
+    }
+
+  for(i=0;i<concurrency;i++)
+    {
+      err=pthread_join(thread[i],NULL);
+      if(err!=0)
+	goto fail;
+    }
+
+  if(timewarp_interval)
+    {
+      err=pthread_join(timewarp,NULL);
+      if(err!=0)
+	goto fail;
+    }
+
+  concurrency=0;
+  free(thread);
+  timewarp_interval=0;
+
+  pthread_mutex_lock(&event_lock);
+
+  while(events)
+    {
+      struct periodic_t *event=events;
+
+      events=events->next;
+
+      free(event);
+    }
+
+  pthread_mutex_unlock(&event_lock);
+
+  return 0;
+
+ fail:
+  errno=err;
+  return -1;
 }
 
 int
