@@ -7,14 +7,14 @@ static const char RCSID[]="$Id$";
 #include <errno.h>
 #include <periodic.h>
 
-static struct periodic_t
+static struct periodic_event_t
 {
   unsigned int interval;
   time_t next_occurance;
   time_t base_time;
   void (*callback)(time_t,void *);
   void *arg;
-  struct periodic_t *next;
+  struct periodic_event_t *next;
 } *events=NULL;
 
 static pthread_mutex_t event_lock=PTHREAD_MUTEX_INITIALIZER;
@@ -28,7 +28,7 @@ static void (*timewarp_callback)(void *);
 static void *timewarp_arg;
 
 static void
-enqueue(struct periodic_t *event)
+enqueue(struct periodic_event_t *event)
 {
   /* Reschedule it */
 
@@ -45,17 +45,17 @@ enqueue(struct periodic_t *event)
   pthread_mutex_unlock(&event_lock);
 }
 
-static struct periodic_t *
+static struct periodic_event_t *
 dequeue(void)
 {  
-  struct periodic_t *last_event,*next_event;
+  struct periodic_event_t *last_event,*next_event;
   int err;
 
   pthread_mutex_lock(&event_lock);
 
   for(;;)
     {
-      struct periodic_t *event,*last=NULL;
+      struct periodic_event_t *event,*last=NULL;
       time_t next_occurance=0x7FFFFFFF; /* 2038 */
 
       next_event=NULL;
@@ -129,7 +129,7 @@ periodic_thread(void *foo)
 {
   for(;;)
     {
-      struct periodic_t *event;
+      struct periodic_event_t *event;
       int err;
 
       /* Get it */
@@ -167,7 +167,7 @@ timewarp_thread(void *foo)
       if(now>last_time+timewarp_interval+timewarp_warptime
 	 || now<last_time+timewarp_interval-timewarp_warptime)
 	{
-	  struct periodic_t *event;
+	  struct periodic_event_t *event;
 
 	  /* We've jumped more than warptime seconds, so wake everyone
 	     up and make them recalibrate. */
@@ -194,11 +194,11 @@ timewarp_thread(void *foo)
   return NULL;
 }
 
-struct periodic_t *
+struct periodic_event_t *
 periodic_add(unsigned int interval,unsigned int flags,
 	     void (*callback)(time_t,void *),void *arg)
 {
-  struct periodic_t *event;
+  struct periodic_event_t *event;
 
   event=calloc(1,sizeof(*event));
   if(!event)
@@ -267,7 +267,7 @@ periodic_stop(void)
 {
   unsigned int i;
   int err;
-  struct periodic_t *event;
+  struct periodic_event_t *event;
 
   /* Send a cancel to each thread */
 
@@ -309,7 +309,7 @@ periodic_stop(void)
 
   while(events)
     {
-      struct periodic_t *event=events;
+      struct periodic_event_t *event=events;
 
       events=events->next;
 
