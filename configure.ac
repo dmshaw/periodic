@@ -23,5 +23,15 @@ AC_C_CONST
 
 # Checks for library functions.
 
+AC_ARG_ENABLE(optimization,
+   AC_HELP_STRING([--disable-optimization],[disable compiler optimization]),
+   [if test $enableval = no ; then
+      CFLAGS=`echo $CFLAGS | sed 's/-O[[0-9]]//'`
+   fi])
+
+if test "$GCC" = yes; then
+   CFLAGS="-Wall -pedantic $CFLAGS"
+fi
+
 AC_CONFIG_FILES([Makefile lib/Makefile])
 AC_OUTPUT
