@@ -233,69 +233,6 @@ periodic_start(unsigned int threads,unsigned int flags)
     }
 }
 
-int
-periodic_stop(void)
-{
-  unsigned int i;
-  int err;
-  struct periodic_event_t *event;
-
-  /* Send a cancel to each thread */
-
-  for(i=0;i<concurrency;i++)
-    {
-      int err;
-
-      err=pthread_cancel(thread[i]);
-      if(err!=0)
-	goto fail;
-    }
-
-  if(timewarp_interval)
-    {
-      err=pthread_cancel(timewarp);
-      if(err!=0)
-	goto fail;
-    }
-
-  for(i=0;i<concurrency;i++)
-    {
-      err=pthread_join(thread[i],NULL);
-      if(err!=0)
-	goto fail;
-    }
-
-  if(timewarp_interval)
-    {
-      err=pthread_join(timewarp,NULL);
-      if(err!=0)
-	goto fail;
-    }
-
-  concurrency=0;
-  free(thread);
-  timewarp_interval=0;
-
-  pthread_mutex_lock(&event_lock);
-
-  while(events)
-    {
-      struct periodic_event_t *event=events;
-
-      events=events->next;
-
-      free(event);
-    }
-
-  pthread_mutex_unlock(&event_lock);
-
-  return 0;
-
- fail:
-  errno=err;
-  return -1;
-}
-
 static void *
 timewarp_thread(void *foo)
 {
