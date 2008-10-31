@@ -24,7 +24,6 @@ static pthread_t *thread;
 static pthread_t timewarp;
 static unsigned int timewarp_interval;
 static unsigned int timewarp_warptime;
-static time_t timewarp_base;
 static void (*timewarp_callback)(void *);
 static void *timewarp_arg;
 
@@ -36,9 +35,6 @@ enqueue(struct periodic_t *event)
   pthread_mutex_lock(&event_lock);
 
   printf("adding event %p\n",event);
-
-  if(event->base_time!=timewarp_base)
-    event->base_time=timewarp_base;
 
   event->next_occurance=time(NULL)+event->interval;
 
@@ -81,6 +77,8 @@ dequeue(void)
 	{
 	  struct timespec timeout;
 
+	  printf("waiting until %d\n",(int)next_occurance);
+
 	  timeout.tv_sec=next_occurance;
 	  timeout.tv_nsec=0;
 
@@ -96,6 +94,8 @@ dequeue(void)
 	      /* A new event showed up, so recalculate. */
 	      continue;
 	    }
+	  else
+	    printf("timedout\n");
 	}
       else
 	{
@@ -152,19 +152,13 @@ periodic_thread(void *foo)
   for(;;)
     {
       struct periodic_t *event;
-      time_t now;
       int err;
 
       event=dequeue();
 
       /* Execute it */
       
-      now=time(NULL);
-
-      /* Check, as we might have been woken up early. */
-
-      if(event->next_occurance<=now)
-	(*event->callback)(now,event->arg);
+      (*event->callback)(time(NULL),event->arg);
 
       enqueue(event);
     }
@@ -177,8 +171,6 @@ static void *
 timewarp_thread(void *foo)
 {
   time_t last_time=time(NULL);
-
-  timewarp_base=last_time;
 
   for(;;)
     {
@@ -206,14 +198,11 @@ timewarp_thread(void *foo)
 	  printf("recalibrate\n");
 	  pthread_mutex_lock(&event_lock);
 
-	  timewarp_base=time(NULL);
-
 	  /* Find every event that has a base time that doesn't match,
 	     and recalculate its next_occurance */
 
 	  for(event=events;event;event=event->next)
-	    if(event->base_time!=timewarp_base)
-	      event->next_occurance=timewarp_base+event->interval;
+	    event->next_occurance=now+event->interval;
 
 	  pthread_cond_broadcast(&event_cond);
 	  pthread_mutex_unlock(&event_lock);
