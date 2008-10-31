@@ -34,8 +34,6 @@ enqueue(struct periodic_t *event)
 
   pthread_mutex_lock(&event_lock);
 
-  printf("adding event %p\n",event);
-
   event->next_occurance=time(NULL)+event->interval;
 
   if(event==events)
@@ -77,8 +75,6 @@ dequeue(void)
 	{
 	  struct timespec timeout;
 
-	  printf("waiting until %d\n",(int)next_occurance);
-
 	  timeout.tv_sec=next_occurance;
 	  timeout.tv_nsec=0;
 
@@ -88,14 +84,10 @@ dequeue(void)
 
 	  pthread_cleanup_pop(0);
 
-	  if(err==0)
-	    {
-	      printf("woken up!\n");
-	      /* A new event showed up, so recalculate. */
-	      continue;
-	    }
-	  else
-	    printf("timedout\n");
+	  /* A new event showed up, so recalculate.  Also double check
+	     to cover for minor clock jitter. */
+	  if(err==0 || time(NULL)<next_occurance)
+	    continue;
 	}
       else
 	{
@@ -103,18 +95,12 @@ dequeue(void)
 
 	  pthread_cleanup_push((void *)pthread_mutex_unlock,&event_lock);
 
-	  err=pthread_cond_wait(&event_cond,&event_lock);
+	  pthread_cond_wait(&event_cond,&event_lock);
 
 	  pthread_cleanup_pop(0);
 
-	  if(err==0)
-	    {
-	      printf("woken up!\n");
-	      /* A new event showed up, so recalculate. */
-	      continue;
-	    }
-	  else
-	    abort();
+	  /* A new event showed up, so recalculate. */
+	  continue;
 	}
 
       /* If we get to here, we have an event, and its time has been
@@ -126,19 +112,11 @@ dequeue(void)
   if(next_event)
     {
       if(last_event)
-	{
-	  printf("last event\n");
-	  last_event->next=next_event->next;
-	}
+	last_event->next=next_event->next;
       else
-	{
-	  printf("next event\n");
-	  events=next_event->next;
-	}
+	events=next_event->next;
 
       next_event->next=NULL;
-
-      printf("removing event %p\n",next_event);
     }
 
   pthread_mutex_unlock(&event_lock);
@@ -154,12 +132,13 @@ periodic_thread(void *foo)
       struct periodic_t *event;
       int err;
 
+      /* Get it */
       event=dequeue();
 
       /* Execute it */
-      
       (*event->callback)(time(NULL),event->arg);
 
+      /* Give it back */
       enqueue(event);
     }
 
@@ -177,8 +156,6 @@ timewarp_thread(void *foo)
       time_t now;
       unsigned int remaining=timewarp_interval;
 
-      printf("sleeping\n");
-
       while(remaining)
 	remaining=sleep(remaining);
 
@@ -195,7 +172,6 @@ timewarp_thread(void *foo)
 	  /* We've jumped more than warptime seconds, so wake everyone
 	     up and make them recalibrate. */
 
-	  printf("recalibrate\n");
 	  pthread_mutex_lock(&event_lock);
 
 	  /* Find every event that has a base time that doesn't match,
