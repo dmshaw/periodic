@@ -1,6 +1,6 @@
 # $Id$
 
-SUBDIRS=lib
+SUBDIRS=lib examples
 include_HEADERS=include/periodic.h
 # pkgconfigdir=$(libdir)/pkgconfig
 # pkgconfig_DATA=periodic.pc
