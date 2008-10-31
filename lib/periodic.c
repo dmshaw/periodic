@@ -5,6 +5,7 @@ static const char RCSID[]="$Id$";
 #include <time.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <unistd.h>
 #include <periodic.h>
 
 static struct periodic_event_t
@@ -42,10 +43,16 @@ enqueue(struct periodic_event_t *event)
   pthread_mutex_unlock(&event_lock);
 }
 
+static void
+unlocker(void *foo)
+{
+  pthread_mutex_unlock(&event_lock);
+}
+
 static struct periodic_event_t *
 dequeue(void)
 {  
-  struct periodic_event_t *last_event,*next_event;
+  struct periodic_event_t *last_event=NULL,*next_event;
   int err;
 
   pthread_mutex_lock(&event_lock);
@@ -75,7 +82,7 @@ dequeue(void)
 	  timeout.tv_sec=next_occurance;
 	  timeout.tv_nsec=0;
 
-	  pthread_cleanup_push((void *)pthread_mutex_unlock,&event_lock);
+	  pthread_cleanup_push(unlocker,NULL);
 
 	  err=pthread_cond_timedwait(&event_cond,&event_lock,&timeout);
 
@@ -90,7 +97,7 @@ dequeue(void)
 	{
 	  /* Wait forever */
 
-	  pthread_cleanup_push((void *)pthread_mutex_unlock,&event_lock);
+	  pthread_cleanup_push(unlocker,NULL);
 
 	  pthread_cond_wait(&event_cond,&event_lock);
 
@@ -127,7 +134,6 @@ periodic_thread(void *foo)
   for(;;)
     {
       struct periodic_event_t *event;
-      int err;
 
       /* Get it */
       event=dequeue();
@@ -228,9 +234,9 @@ periodic_start(unsigned int threads,unsigned int flags)
 	  errno=err;
 	  return -1;
 	}
-      else
-	return 0;
     }
+
+  return 0;
 }
 
 static void *
@@ -290,8 +296,6 @@ int
 periodic_timewarp(unsigned int interval,unsigned int warptime,
 		  void (*callback)(time_t,void *),void *arg)
 {
-  struct timewarp *t;
-
   if(interval)
     {
       int err;
