@@ -24,7 +24,7 @@ static pthread_t *thread;
 static pthread_t timewarp;
 static unsigned int timewarp_interval;
 static unsigned int timewarp_warptime;
-static void (*timewarp_callback)(void *);
+static void (*timewarp_callback)(time_t,void *);
 static void *timewarp_arg;
 
 static void
@@ -143,54 +143,6 @@ periodic_thread(void *foo)
   return NULL;
 }
 
-static void *
-timewarp_thread(void *foo)
-{
-  time_t last_time=time(NULL);
-
-  for(;;)
-    {
-      time_t now;
-      unsigned int remaining=timewarp_interval;
-
-      while(remaining)
-	remaining=sleep(remaining);
-
-      now=time(NULL);
-
-      /* last_time+timewarp->interval is where we should be, if there
-	 was no timewarp. */
-
-      if(now>last_time+timewarp_interval+timewarp_warptime
-	 || now<last_time+timewarp_interval-timewarp_warptime)
-	{
-	  struct periodic_event_t *event;
-
-	  /* We've jumped more than warptime seconds, so wake everyone
-	     up and make them recalibrate. */
-
-	  pthread_mutex_lock(&event_lock);
-
-	  /* Find every event that has a base time that doesn't match,
-	     and recalculate its next_occurance */
-
-	  for(event=events;event;event=event->next)
-	    event->next_occurance=now+event->interval;
-
-	  pthread_cond_broadcast(&event_cond);
-	  pthread_mutex_unlock(&event_lock);
-
-	  if(timewarp_callback)
-	    (timewarp_callback)(timewarp_arg);
-	}
-
-      last_time=now;
-    }
-
-  /* Never reached */
-  return NULL;
-}
-
 struct periodic_event_t *
 periodic_add(unsigned int interval,unsigned int flags,
 	     void (*callback)(time_t,void *),void *arg)
@@ -244,7 +196,6 @@ periodic_start(unsigned int threads,unsigned int flags)
     }
   else
     {
-      pthread_attr_t attr;
       int err;
 
       thread=malloc(sizeof(pthread_t)*threads);
@@ -254,18 +205,14 @@ periodic_start(unsigned int threads,unsigned int flags)
 	  return -1;
 	}
 
-      pthread_attr_init(&attr);
-
-      pthread_attr_setdetachstate(&attr,PTHREAD_CREATE_DETACHED);
-
       for(concurrency=0;concurrency<threads;concurrency++)
 	{
-	  err=pthread_create(&thread[concurrency],&attr,periodic_thread,NULL);
-	  if(err!=0)
+	  err=pthread_create(&thread[concurrency],NULL,periodic_thread,NULL);
+	  if(err==0)
+	    pthread_detach(thread[concurrency]);
+	  else
 	    break;
 	}
-
-      pthread_attr_destroy(&attr);
 
       if(concurrency!=threads)
 	{
@@ -349,9 +296,62 @@ periodic_stop(void)
   return -1;
 }
 
+static void *
+timewarp_thread(void *foo)
+{
+  time_t last_time=time(NULL);
+
+  for(;;)
+    {
+      time_t now;
+      unsigned int remaining=timewarp_interval;
+
+      while(remaining)
+	remaining=sleep(remaining);
+
+      now=time(NULL);
+
+      /* last_time+timewarp->interval is where we should be, if there
+	 was no timewarp. */
+
+      if(now>last_time+timewarp_interval+timewarp_warptime
+	 || now<last_time+timewarp_interval-timewarp_warptime)
+	{
+	  struct periodic_event_t *event;
+
+	  /* We've jumped more than warptime seconds. */
+
+	  if(timewarp_callback)
+	    (timewarp_callback)(now,timewarp_arg);
+
+	  /* Wake everyone up and make them recalibrate. */
+
+	  pthread_mutex_lock(&event_lock);
+
+	  /* Find every event that has a base time that doesn't match,
+	     and recalculate its next_occurance */
+
+	  for(event=events;event;event=event->next)
+	    event->next_occurance=now+event->interval;
+
+	  pthread_cond_broadcast(&event_cond);
+	  pthread_mutex_unlock(&event_lock);
+
+	  /* This is because the timewarp_callback may take a while to
+	     execute */
+	  now=time(NULL);
+	}
+
+      last_time=now;
+    }
+
+  /* Never reached */
+  return NULL;
+}
+
 int
 periodic_timewarp(unsigned int interval,unsigned int warptime,
-		  void (*callback)(void *),void *arg)
+		  void (*callback)(time_t,void *),void *arg)
 {
   struct timewarp *t;
 
@@ -365,7 +365,9 @@ periodic_timewarp(unsigned int interval,unsigned int warptime,
       timewarp_arg=arg;
 
       err=pthread_create(&timewarp,NULL,timewarp_thread,NULL);
-      if(err!=0)
+      if(err==0)
+	pthread_detach(timewarp);
+      else
 	{
 	  errno=err;
 	  return -1;
