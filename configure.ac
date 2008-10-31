@@ -11,10 +11,18 @@ AM_INIT_AUTOMAKE([foreign])
 
 # Checks for programs.
 AC_PROG_CC
-AC_DISABLE_SHARED
 AC_PROG_LIBTOOL
 
 # Checks for libraries.
+AC_MSG_CHECKING([for pthreads])
+_save_libs=$LIBS
+LIBS="$_save_libs -lpthread"
+AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <pthread.h>],[pthread_cleanup_push(0,0); pthread_cleanup_pop(0);])],found=yes,found=no)
+AC_MSG_RESULT($found)
+if test $found = no ; then
+   AC_MSG_ERROR([periodic requires pthreads])
+fi
+LIBS=$_save_libs
 
 # Checks for header files.
 
