@@ -36,9 +36,6 @@ enqueue(struct periodic_event_t *event)
 
   event->next_occurance=time(NULL)+event->interval;
 
-  if(event==events)
-    abort();
-
   event->next=events;
   events=event;
 
@@ -225,6 +222,12 @@ periodic_add(unsigned int interval,unsigned int flags,
 int
 periodic_start(unsigned int threads,unsigned int flags)
 {
+  if(concurrency)
+    {
+      errno=EBUSY;
+      return -1;
+    }
+
   if(threads==0)
     {
       thread=malloc(sizeof(pthread_t));
@@ -241,7 +244,8 @@ periodic_start(unsigned int threads,unsigned int flags)
     }
   else
     {
-      unsigned int i;
+      pthread_attr_t attr;
+      int err;
 
       thread=malloc(sizeof(pthread_t)*threads);
       if(!thread)
@@ -250,15 +254,35 @@ periodic_start(unsigned int threads,unsigned int flags)
 	  return -1;
 	}
 
-      for(i=0;i<threads;i++)
-	{
-	  int err;
+      pthread_attr_init(&attr);
 
-	  err=pthread_create(&thread[i],NULL,periodic_thread,NULL);
+      pthread_attr_setdetachstate(&attr,PTHREAD_CREATE_DETACHED);
+
+      for(concurrency=0;concurrency<threads;concurrency++)
+	{
+	  err=pthread_create(&thread[concurrency],&attr,periodic_thread,NULL);
 	  if(err!=0)
-	    abort();
-	  concurrency++;
+	    break;
 	}
+
+      pthread_attr_destroy(&attr);
+
+      if(concurrency!=threads)
+	{
+	  unsigned int i;
+
+	  /* We failed somewhere, so clean up. */
+	  for(i=0;i<concurrency;i++)
+	    pthread_cancel(thread[i]);
+
+	  free(thread);
+	  concurrency=0;
+
+	  errno=err;
+	  return -1;
+	}
+      else
+	return 0;
     }
 }
 
