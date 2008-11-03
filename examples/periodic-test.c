@@ -2,6 +2,7 @@ static const char RCSID[]="$Id$";
 
 #include <config.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <periodic.h>
 
 static void
@@ -23,6 +24,12 @@ five(time_t now,void *foo)
 }
 
 static void
+oneshot(time_t now,void *foo)
+{
+  printf("ONESHOT EVENT: It is %d and my arg is %p\n",(int)now,foo);
+}
+
+static void
 timewarp(time_t now,void *foo)
 {
   printf("TIMEWARP!\n");
@@ -38,6 +45,8 @@ main(int argc,char *argv[])
   event1=periodic_add(1,0,one,(void *)0x1234);
   periodic_add(3,0,three,(void *)0x5678);
   periodic_add(5,0,five,(void *)0x5678);
+
+  periodic_add(5,PERIODIC_DELAY|PERIODIC_ONESHOT,oneshot,(void *)0x5678);
 
   periodic_start(1,0);
 

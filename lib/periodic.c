@@ -17,7 +17,7 @@ static struct periodic_event_t
   void *arg;
   struct
   {
-    unsigned int delete:1;
+    unsigned int oneshot:1;
   } flags;
   struct periodic_event_t *next;  
 } *events=NULL;
@@ -37,7 +37,7 @@ enqueue(struct periodic_event_t *event)
 {
   pthread_mutex_lock(&event_lock);
 
-  if(event->flags.delete)
+  if(event->flags.oneshot)
     free(event);
   else
     {
@@ -173,8 +173,12 @@ periodic_add(unsigned int interval,unsigned int flags,
   event->interval=interval;
   event->callback=callback;
   event->arg=arg;
+
   if(flags&PERIODIC_DELAY)
     event->next_occurance=time(NULL)+interval;
+
+  if(flags&PERIODIC_ONESHOT)
+    event->flags.oneshot=1;
 
   pthread_mutex_lock(&event_lock);
   event->next=events;
@@ -209,11 +213,11 @@ periodic_remove(struct periodic_event_t *remove)
   if(!event)
     {
       /* We didn't find it, which indicates that it might be running
-	 right now.  Set a flag to inform us to delete it later.  We
-	 are holding event_lock, so the event won't be enqueued until
-	 we release it. */
+	 right now.  Set the oneshot flag to make this into a oneshot
+	 event, which will be deleted when the thread that is running
+	 it tries to re-enqueue it. */
 
-      event->flags.delete=1;
+      event->flags.oneshot=1;
     }
 
   pthread_mutex_unlock(&event_lock);

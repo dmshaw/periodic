@@ -5,7 +5,8 @@
 
 #include <time.h>
 
-#define PERIODIC_DELAY 1
+#define PERIODIC_DELAY   1
+#define PERIODIC_ONESHOT 2
 
 struct periodic_event_t *periodic_add(unsigned int interval,unsigned int flags,
 				      void (*callback)(time_t,void *),
