@@ -225,6 +225,18 @@ periodic_remove(struct periodic_event_t *remove)
   return 0;
 }
 
+static void
+prepare(void)
+{
+  pthread_mutex_lock(&event_lock);
+}
+
+static void
+unprepare(void)
+{
+  pthread_mutex_unlock(&event_lock);
+}
+
 int
 periodic_start(unsigned int threads,unsigned int flags)
 {
@@ -251,6 +263,13 @@ periodic_start(unsigned int threads,unsigned int flags)
   else
     {
       int err;
+
+      err=pthread_atfork(prepare,unprepare,unprepare);
+      if(err==-1)
+	{
+	  errno=err;
+	  return -1;
+	}
 
       thread=malloc(sizeof(pthread_t)*threads);
       if(!thread)
@@ -319,8 +338,7 @@ timewarp_thread(void *foo)
 
 	  pthread_mutex_lock(&event_lock);
 
-	  /* Find every event that has a base time that doesn't match,
-	     and recalculate its next_occurance */
+	  /* Recalculate everyone */
 
 	  for(event=events;event;event=event->next)
 	    event->next_occurance=now+event->interval;
@@ -330,6 +348,7 @@ timewarp_thread(void *foo)
 
 	  /* This is because the timewarp_callback may take a while to
 	     execute */
+
 	  now=time(NULL);
 	}
 
