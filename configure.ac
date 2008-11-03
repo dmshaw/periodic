@@ -7,7 +7,7 @@ AC_COPYRIGHT([Copyright (C) 2008, David Shaw])
 AC_INIT(periodic, 0.5, dshaw@jabberwocky.com)
 AC_CONFIG_SRCDIR([lib/periodic.c])
 AC_CONFIG_HEADER([config.h])
-AM_INIT_AUTOMAKE([foreign])
+AM_INIT_AUTOMAKE([std-options])
 
 # Checks for programs.
 AC_PROG_CC
