@@ -31,13 +31,21 @@ timewarp(time_t now,void *foo)
 int
 main(int argc,char *argv[])
 {
+  struct periodic_event_t *event1;
+
   periodic_timewarp(1,0,timewarp,NULL);
 
-  periodic_add(1,0,one,(void *)0x1234);
+  event1=periodic_add(1,0,one,(void *)0x1234);
   periodic_add(3,0,three,(void *)0x5678);
   periodic_add(5,0,five,(void *)0x5678);
 
-  periodic_start(0,0);
+  periodic_start(1,0);
+
+  sleep(5);
+
+  periodic_remove(event1);
+
+  pause();
 
   /* Never reached */
   return 0;

@@ -15,7 +15,11 @@ static struct periodic_event_t
   time_t base_time;
   void (*callback)(time_t,void *);
   void *arg;
-  struct periodic_event_t *next;
+  struct
+  {
+    unsigned int delete:1;
+  } flags;
+  struct periodic_event_t *next;  
 } *events=NULL;
 
 static pthread_mutex_t event_lock=PTHREAD_MUTEX_INITIALIZER;
@@ -31,14 +35,18 @@ static void *timewarp_arg;
 static void
 enqueue(struct periodic_event_t *event)
 {
-  /* Reschedule it */
-
   pthread_mutex_lock(&event_lock);
 
-  event->next_occurance=time(NULL)+event->interval;
+  if(event->flags.delete)
+    free(event);
+  else
+    {
+      /* Reschedule it */
+      event->next_occurance=time(NULL)+event->interval;
 
-  event->next=events;
-  events=event;
+      event->next=events;
+      events=event;
+    }
 
   pthread_mutex_unlock(&event_lock);
 }
@@ -175,6 +183,42 @@ periodic_add(unsigned int interval,unsigned int flags,
   pthread_mutex_unlock(&event_lock);
 
   return event;
+}
+
+int
+periodic_remove(struct periodic_event_t *remove)
+{
+  struct periodic_event_t *event,*last=NULL;
+
+  pthread_mutex_lock(&event_lock);
+
+  for(event=events;event;last=event,event=event->next)
+    if(remove==event)
+      {
+	if(last)
+	  last->next=event->next;
+	else
+	  events=event->next;
+
+	free(event);
+
+	pthread_cond_broadcast(&event_cond);
+	break;
+      }
+
+  if(!event)
+    {
+      /* We didn't find it, which indicates that it might be running
+	 right now.  Set a flag to inform us to delete it later.  We
+	 are holding event_lock, so the event won't be enqueued until
+	 we release it. */
+
+      event->flags.delete=1;
+    }
+
+  pthread_mutex_unlock(&event_lock);
+
+  return 0;
 }
 
 int
