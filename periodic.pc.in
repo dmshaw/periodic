@@ -1,0 +1,12 @@
+# $Id$
+
+prefix=@prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: periodic
+URL: http://www.jabberwocky.com/software/periodic/
+Description: Library for periodic repeating events
+Version: @PACKAGE_VERSION@
+Libs: -L${libdir} -lperiodic
+Cflags: -I${includedir}

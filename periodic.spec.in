@@ -1,0 +1,58 @@
+# $Id$
+
+Summary: Library for repeating periodic events
+Name: periodic
+Version: @PACKAGE_VERSION@
+Release: 1
+License: LGPL
+Group: System Environment/Libraries
+Source: http://www.jabberwocky.com/software/periodic/periodic-%{version}.tar.gz
+Url: http://www.jabberwocky.com/software/periodic/
+Prereq: /sbin/ldconfig
+BuildRoot: %{_tmppath}/%{name}-root
+
+%description
+The periodic package contains a library to simplify making repeating
+cron-like functions in C programs.
+
+%package devel
+Summary: periodic static libraries and headers.
+Group: Development/Libraries
+Requires: periodic = %{version}
+Prereq: /sbin/install-info
+
+%description devel
+This package contains the libraries and header files needed to develop
+programs that use the periodic library.
+
+%prep
+%setup
+
+%build
+%configure
+make
+
+%install
+rm -rf $RPM_BUILD_ROOT
+make install DESTDIR="$RPM_BUILD_ROOT"
+/sbin/ldconfig -n ${RPM_BUILD_ROOT}%{_libdir}
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%post -p /sbin/ldconfig
+
+%postun -p /sbin/ldconfig
+
+%files
+%defattr(-,root,root)
+%doc README NEWS
+%{_libdir}/libperiodic.so.*
+
+%files devel
+%defattr(-,root,root)
+%{_libdir}/libperiodic.a
+%{_libdir}/libperiodic.so
+%{_libdir}/libperiodic.la
+%{_libdir}/pkgconfig/periodic.pc
+%{_includedir}/periodic.h
