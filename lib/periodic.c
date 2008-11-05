@@ -82,13 +82,13 @@ unlocker(void *foo)
    If it is more than 1, and we don't have a spare thread, then
    someone is going to wait.  This might be a problem if the event
    takes a while.  after_occurance is the next time an event will fire
-   off.  It might be in the past if we have events that take a
-   while. */
+   off.  It might be in the past if we have events that take a while.
+   It also might be equal to the current time if count>1. */
 
 static struct periodic_event_t *
 dequeue(int *count,time_t *after_occurance)
 {  
-  struct periodic_event_t *last_event=NULL,*next_event,*prev_event=NULL;
+  struct periodic_event_t *last_event=NULL,*next_event;
   int err;
 
   pthread_mutex_lock(&event_lock);
@@ -98,6 +98,8 @@ dequeue(int *count,time_t *after_occurance)
       struct periodic_event_t *event,*last=NULL;
       time_t next_occurance=0x7FFFFFFF; /* 2038 */
 
+      *after_occurance=0x7FFFFFFF; /* 2038 */
+
       *count=0;
 
       next_event=NULL;
@@ -105,35 +107,29 @@ dequeue(int *count,time_t *after_occurance)
       /* Find the next event to occur */
       for(event=events;event;last=event,event=event->next)
 	{
-#if 0
-	  printf("looking at %d (%d < %d)\n",event->interval,
-		 event->next_occurance,next_occurance);
-	  if(prev_event)
-	    printf("prev event %d\n",prev_event->next_occurance);
-#endif
-
 	  if(event->next_occurance==next_occurance)
 	    (*count)++;
-	  else if(event->next_occurance<next_occurance)
+
+	  if(event->next_occurance<next_occurance)
 	    {
 	      *count=1;
 	      next_occurance=event->next_occurance;
-
-	      prev_event=next_event;
+	      if(next_event)
+		{
+		  *after_occurance=next_event->next_occurance;
 #if 0
-	      if(prev_event)
-		printf("prev_event is now (in) %d\n",prev_event->interval);
+		  printf("After_occurance is now (in) %d\n",*after_occurance);
 #endif
+		}
+
 	      next_event=event;
 	      last_event=last;
 	    }
-	  else if((prev_event
-		   && event->next_occurance<prev_event->next_occurance)
-		  || !prev_event)
+	  else if(event->next_occurance<*after_occurance)
 	    {
-	      prev_event=event;
+	      *after_occurance=event->next_occurance;
 #if 0
-	      printf("prev_event is now %d\n",prev_event->interval);
+	      printf("After_occurance is now %d\n",*after_occurance);
 #endif
 	    }
 	}
@@ -148,20 +144,13 @@ dequeue(int *count,time_t *after_occurance)
 	{
 	  struct timespec timeout;
 
-	  if(prev_event)
-	    {
-	      /* Is our own event going to happen again before the
-		 prev_event? */
-	      if(next_event->next_occurance+next_event->interval
-		 < prev_event->next_occurance)
-		*after_occurance=
-		  next_event->next_occurance+next_event->interval;
-	      else
-		*after_occurance=prev_event->next_occurance;
-	    }
-
 	  timeout.tv_sec=next_occurance;
 	  timeout.tv_nsec=0;
+
+	  /* Is our own event going to happen again before the next
+	     event? */
+	  if(next_event->next_occurance+next_event->interval<*after_occurance)
+	    *after_occurance=next_event->next_occurance+next_event->interval;
 
 	  pthread_cleanup_push(unlocker,NULL);
 
@@ -205,7 +194,10 @@ dequeue(int *count,time_t *after_occurance)
     }
 
   pthread_mutex_unlock(&event_lock);
-  
+
+  printf("Returning event %d at %d.  Next is at %d.\n",
+	 next_event->interval,next_event->next_occurance,*after_occurance);
+
   return next_event;
 }
 
@@ -218,16 +210,12 @@ periodic_thread(void *foo)
       int count;
       time_t after_occurance;
 
-#if 0
       printf("\n");
-#endif
 
       /* Get it */
       event=dequeue(&count,&after_occurance);
 
-#if 0
       printf("count %d, after_occurance %d\n",count,after_occurance);
-#endif
 
       /* Execute it */
       (*event->func)(event->arg);
