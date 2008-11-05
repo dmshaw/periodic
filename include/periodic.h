@@ -61,10 +61,12 @@ int periodic_remove(struct periodic_event_t *remove);
   Call this function to start the periodic events.  Concurrency is how
   many periodic events can happen at once.  If multiple events happen
   at the same moment and concurrency is not high enough, the events
-  will happen one after another rather than concurrently.  You can
-  pass the special value "0" for concurrency, which makes
-  periodic_start() not return.
+  will happen one after another rather than concurrently.  The
+  NORETURN flag makes periodic_start() not return - the calling thread
+  becomes one of the pool used to run periodic events.
  */
+
+#define PERIODIC_NORETURN 1
 
 int periodic_start(unsigned int concurrency,unsigned int flags);
 int periodic_timewarp(unsigned int interval,unsigned int warptime,

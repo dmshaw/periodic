@@ -24,8 +24,9 @@ static struct periodic_event_t
 
 static pthread_mutex_t event_lock=PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t event_cond=PTHREAD_COND_INITIALIZER;
-static unsigned int concurrency;
-static pthread_t *thread;
+static pthread_mutex_t thread_lock=PTHREAD_MUTEX_INITIALIZER;
+static unsigned int num_threads;
+static pthread_t *threads;
 static pthread_t timewarp;
 static unsigned int timewarp_interval;
 static unsigned int timewarp_warptime;
@@ -58,7 +59,7 @@ unlocker(void *foo)
 }
 
 static struct periodic_event_t *
-dequeue(void)
+dequeue(int *count)
 {  
   struct periodic_event_t *last_event=NULL,*next_event;
   int err;
@@ -70,12 +71,17 @@ dequeue(void)
       struct periodic_event_t *event,*last=NULL;
       time_t next_occurance=0x7FFFFFFF; /* 2038 */
 
+      *count=0;
+
       next_event=NULL;
 
       /* Find the next event to occur */
       for(event=events;event;last=event,event=event->next)
-	if(event->next_occurance<next_occurance)
+	if(event->next_occurance==next_occurance)
+	  (*count)++;
+	else if(event->next_occurance<next_occurance)
 	  {
+	    *count=1;
 	    next_occurance=event->next_occurance;
 	    next_event=event;
 	    last_event=last;
@@ -142,9 +148,10 @@ periodic_thread(void *foo)
   for(;;)
     {
       struct periodic_event_t *event;
+      int count;
 
       /* Get it */
-      event=dequeue();
+      event=dequeue(&count);
 
       /* Execute it */
       (*event->func)(event->arg);
@@ -237,10 +244,21 @@ unprepare(void)
   pthread_mutex_unlock(&event_lock);
 }
 
-int
-periodic_start(unsigned int threads,unsigned int flags)
+static void
+setup_atfork(void)
 {
-  if(concurrency)
+  pthread_atfork(prepare,unprepare,unprepare);
+}
+
+int
+periodic_start(unsigned int concurrency,unsigned int flags)
+{
+  static pthread_once_t once=PTHREAD_ONCE_INIT;
+  int err;
+
+  pthread_once(&once,setup_atfork);
+
+  if(num_threads)
     {
       errno=EBUSY;
       return -1;
@@ -248,60 +266,50 @@ periodic_start(unsigned int threads,unsigned int flags)
 
   if(threads==0)
     {
-      thread=malloc(sizeof(pthread_t));
-      if(!thread)
-	{
-	  errno=ENOMEM;
-	  return -1;
-	}
-
-      concurrency=1;
-      thread[0]=pthread_self();
-
-      periodic_thread(NULL);
+      errno=EINVAL;
+      return -1;
     }
-  else
+
+  threads=malloc(sizeof(pthread_t)*concurrency);
+  if(!threads)
     {
-      int err;
-
-      err=pthread_atfork(prepare,unprepare,unprepare);
-      if(err==-1)
-	{
-	  errno=err;
-	  return -1;
-	}
-
-      thread=malloc(sizeof(pthread_t)*threads);
-      if(!thread)
-	{
-	  errno=ENOMEM;
-	  return -1;
-	}
-
-      for(concurrency=0;concurrency<threads;concurrency++)
-	{
-	  err=pthread_create(&thread[concurrency],NULL,periodic_thread,NULL);
-	  if(err==0)
-	    pthread_detach(thread[concurrency]);
-	  else
-	    break;
-	}
-
-      if(concurrency!=threads)
-	{
-	  unsigned int i;
-
-	  /* We failed somewhere, so clean up. */
-	  for(i=0;i<concurrency;i++)
-	    pthread_cancel(thread[i]);
-
-	  free(thread);
-	  concurrency=0;
-
-	  errno=err;
-	  return -1;
-	}
+      errno=ENOMEM;
+      return -1;
     }
+
+  if(flags&PERIODIC_NORETURN)
+    {
+      concurrency=1;
+      threads[0]=pthread_self();
+    } 
+
+  for(;num_threads<concurrency;num_threads++)
+    {
+      err=pthread_create(&threads[num_threads],NULL,periodic_thread,NULL);
+      if(err==0)
+	pthread_detach(threads[num_threads]);
+      else
+	break;
+    }
+
+  if(num_threads!=concurrency)
+    {
+      unsigned int i;
+
+      /* We failed somewhere, so clean up. */
+      for(i=0;i<num_threads;i++)
+	if(pthread_self()!=threads[i])
+	  pthread_cancel(threads[i]);
+
+      free(threads);
+      num_threads=0;
+
+      errno=err;
+      return -1;
+    }
+
+  if(flags&PERIODIC_NORETURN)
+      periodic_thread(NULL);
 
   return 0;
 }
