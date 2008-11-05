@@ -285,6 +285,7 @@ periodic_start(unsigned int concurrency,unsigned int flags)
     {
       num_threads=1;
       threads[0]=pthread_self();
+      pthread_detach(threads[0]);
     } 
 
   for(;num_threads<concurrency;num_threads++)
@@ -315,7 +316,7 @@ periodic_start(unsigned int concurrency,unsigned int flags)
   pthread_mutex_unlock(&thread_lock);
 
   if(flags&PERIODIC_NORETURN)
-      periodic_thread(NULL);
+    periodic_thread(NULL);
 
   return 0;
 }
