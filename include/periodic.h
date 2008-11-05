@@ -2,7 +2,7 @@
 
 /*
   periodic - a library for repeating periodic events
-  Copyright (C) 2008 David Shaw <dshaw@jabberwocky.com>
+  Copyright (C) 2008 David Shaw, <dshaw@jabberwocky.com>
 
   This library is free software; you can redistribute it and/or modify
   it under the terms of the GNU Lesser General Public License as
