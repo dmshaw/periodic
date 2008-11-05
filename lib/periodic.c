@@ -13,7 +13,7 @@ static struct periodic_event_t
   unsigned int interval;
   time_t next_occurance;
   time_t base_time;
-  void (*callback)(time_t,void *);
+  void (*func)(time_t,void *);
   void *arg;
   struct
   {
@@ -29,7 +29,7 @@ static pthread_t *thread;
 static pthread_t timewarp;
 static unsigned int timewarp_interval;
 static unsigned int timewarp_warptime;
-static void (*timewarp_callback)(time_t,void *);
+static void (*timewarp_func)(time_t,void *);
 static void *timewarp_arg;
 
 static void
@@ -147,7 +147,7 @@ periodic_thread(void *foo)
       event=dequeue();
 
       /* Execute it */
-      (*event->callback)(time(NULL),event->arg);
+      (*event->func)(time(NULL),event->arg);
 
       /* Give it back */
       enqueue(event);
@@ -159,7 +159,7 @@ periodic_thread(void *foo)
 
 struct periodic_event_t *
 periodic_add(unsigned int interval,unsigned int flags,
-	     void (*callback)(time_t,void *),void *arg)
+	     void (*func)(time_t,void *),void *arg)
 {
   struct periodic_event_t *event;
 
@@ -171,7 +171,7 @@ periodic_add(unsigned int interval,unsigned int flags,
     }
 
   event->interval=interval;
-  event->callback=callback;
+  event->func=func;
   event->arg=arg;
 
   if(flags&PERIODIC_DELAY)
@@ -331,8 +331,8 @@ timewarp_thread(void *foo)
 
 	  /* We've jumped more than warptime seconds. */
 
-	  if(timewarp_callback)
-	    (timewarp_callback)(now,timewarp_arg);
+	  if(timewarp_func)
+	    (timewarp_func)(now,timewarp_arg);
 
 	  /* Wake everyone up and make them recalibrate. */
 
@@ -346,7 +346,7 @@ timewarp_thread(void *foo)
 	  pthread_cond_broadcast(&event_cond);
 	  pthread_mutex_unlock(&event_lock);
 
-	  /* This is because the timewarp_callback may take a while to
+	  /* This is because the timewarp_func may take a while to
 	     execute */
 
 	  now=time(NULL);
@@ -361,7 +361,7 @@ timewarp_thread(void *foo)
 
 int
 periodic_timewarp(unsigned int interval,unsigned int warptime,
-		  void (*callback)(time_t,void *),void *arg)
+		  void (*func)(time_t,void *),void *arg)
 {
   if(interval)
     {
@@ -369,7 +369,7 @@ periodic_timewarp(unsigned int interval,unsigned int warptime,
 
       timewarp_interval=interval;
       timewarp_warptime=warptime;
-      timewarp_callback=callback;
+      timewarp_func=func;
       timewarp_arg=arg;
 
       err=pthread_create(&timewarp,NULL,timewarp_thread,NULL);
