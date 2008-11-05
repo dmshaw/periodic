@@ -218,12 +218,16 @@ periodic_thread(void *foo)
       int count;
       time_t after_occurance;
 
-      //      printf("\n");
+#if 0
+      printf("\n");
+#endif
 
       /* Get it */
       event=dequeue(&count,&after_occurance);
 
-      //      printf("count %d, after_occurance %d\n",count,after_occurance);
+#if 0
+      printf("count %d, after_occurance %d\n",count,after_occurance);
+#endif
 
       /* Execute it */
       (*event->func)(event->arg);
