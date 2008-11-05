@@ -1,6 +1,17 @@
-Periodic - a repeatinv event library
-------------------------------------
-David Shaw <dshaw@jabberwocky.com>
+		 Periodic - a repeating event library
+		 ------------------------------------
+		  David Shaw <dshaw@jabberwocky.com>
 
+There isn't a lot that needs to be said about this library.
+Basically, it acts like a "cron" inside a program.  You give it a list
+of functions that need to be run and how often you want them to run,
+and periodic schedules and runs them as needed.  I've written the
+rough equivalent of this code a number of times in various jobs, and
+it became time to just write a nice robust version of it, give it a
+clean API, and release it as a library.  If nothing else, now I don't
+have to write it over again.
+
+See the periodic.h header for instructions, and the examples directory
+for sample code.
 
 $Id$
