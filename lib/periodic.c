@@ -258,28 +258,32 @@ periodic_start(unsigned int concurrency,unsigned int flags)
 
   pthread_once(&once,setup_atfork);
 
-  if(num_threads)
+  if(concurrency==0)
     {
-      errno=EBUSY;
+      errno=EINVAL;
       return -1;
     }
 
-  if(threads==0)
+  pthread_mutex_lock(&thread_lock);
+
+  if(num_threads)
     {
-      errno=EINVAL;
+      pthread_mutex_unlock(&thread_lock);
+      errno=EBUSY;
       return -1;
     }
 
   threads=malloc(sizeof(pthread_t)*concurrency);
   if(!threads)
     {
+      pthread_mutex_unlock(&thread_lock);
       errno=ENOMEM;
       return -1;
     }
 
   if(flags&PERIODIC_NORETURN)
     {
-      concurrency=1;
+      num_threads=1;
       threads[0]=pthread_self();
     } 
 
@@ -307,6 +311,8 @@ periodic_start(unsigned int concurrency,unsigned int flags)
       errno=err;
       return -1;
     }
+
+  pthread_mutex_unlock(&thread_lock);
 
   if(flags&PERIODIC_NORETURN)
       periodic_thread(NULL);
