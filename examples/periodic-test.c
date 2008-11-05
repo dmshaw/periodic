@@ -3,34 +3,35 @@ static const char RCSID[]="$Id$";
 #include <config.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <time.h>
 #include <periodic.h>
 
 static void
-one(time_t now,void *foo)
+one(void *foo)
 {
-  printf("ONE SECOND EVENT: It is %d and my arg is %p\n",(int)now,foo);
+  printf("ONE SECOND EVENT: It is %d and my arg is %p\n",(int)time(NULL),foo);
 }
 
 static void
-three(time_t now,void *foo)
+three(void *foo)
 {
-  printf("THREE SECOND EVENT: It is %d and my arg is %p\n",(int)now,foo);
+  printf("THREE SECOND EVENT: It is %d and my arg is %p\n",(int)time(NULL),foo);
 }
 
 static void
-five(time_t now,void *foo)
+five(void *foo)
 {
-  printf("FIVE SECOND EVENT: It is %d and my arg is %p\n",(int)now,foo);
+  printf("FIVE SECOND EVENT: It is %d and my arg is %p\n",(int)time(NULL),foo);
 }
 
 static void
-oneshot(time_t now,void *foo)
+oneshot(void *foo)
 {
-  printf("ONESHOT EVENT: It is %d and my arg is %p\n",(int)now,foo);
+  printf("ONESHOT EVENT: It is %d and my arg is %p\n",(int)time(NULL),foo);
 }
 
 static void
-timewarp(time_t now,void *foo)
+timewarp(void *foo)
 {
   printf("TIMEWARP!\n");
 }

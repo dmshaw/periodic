@@ -13,7 +13,7 @@ static struct periodic_event_t
   unsigned int interval;
   time_t next_occurance;
   time_t base_time;
-  void (*func)(time_t,void *);
+  void (*func)(void *);
   void *arg;
   struct
   {
@@ -29,7 +29,7 @@ static pthread_t *thread;
 static pthread_t timewarp;
 static unsigned int timewarp_interval;
 static unsigned int timewarp_warptime;
-static void (*timewarp_func)(time_t,void *);
+static void (*timewarp_func)(void *);
 static void *timewarp_arg;
 
 static void
@@ -147,7 +147,7 @@ periodic_thread(void *foo)
       event=dequeue();
 
       /* Execute it */
-      (*event->func)(time(NULL),event->arg);
+      (*event->func)(event->arg);
 
       /* Give it back */
       enqueue(event);
@@ -159,7 +159,7 @@ periodic_thread(void *foo)
 
 struct periodic_event_t *
 periodic_add(unsigned int interval,unsigned int flags,
-	     void (*func)(time_t,void *),void *arg)
+	     void (*func)(void *),void *arg)
 {
   struct periodic_event_t *event;
 
@@ -332,7 +332,7 @@ timewarp_thread(void *foo)
 	  /* We've jumped more than warptime seconds. */
 
 	  if(timewarp_func)
-	    (timewarp_func)(now,timewarp_arg);
+	    (timewarp_func)(timewarp_arg);
 
 	  /* Wake everyone up and make them recalibrate. */
 
@@ -361,7 +361,7 @@ timewarp_thread(void *foo)
 
 int
 periodic_timewarp(unsigned int interval,unsigned int warptime,
-		  void (*func)(time_t,void *),void *arg)
+		  void (*func)(void *),void *arg)
 {
   if(interval)
     {
