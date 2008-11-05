@@ -23,9 +23,6 @@
 #ifndef _PERIODIC_H_
 #define _PERIODIC_H_
 
-#define PERIODIC_DELAY   1
-#define PERIODIC_ONESHOT 2
-
 /*
   Call this function to add an event to the queue.  Interval is how
   often (in seconds) you want this function to run.  The func is a
@@ -45,6 +42,9 @@
   This function returns a pointer to a struct periodic_event_t on
   success, or NULL on failure (and sets errno).
  */
+
+#define PERIODIC_DELAY   1
+#define PERIODIC_ONESHOT 2
 
 struct periodic_event_t *periodic_add(unsigned int interval,unsigned int flags,
 				      void (*func)(void *),void *arg);
@@ -69,6 +69,26 @@ int periodic_remove(struct periodic_event_t *remove);
 #define PERIODIC_NORETURN 1
 
 int periodic_start(unsigned int concurrency,unsigned int flags);
+
+/*
+  A common problem with programs that use any sort of repeating event
+  is what to do in the case of a time warp (i.e. a clock that jumps in
+  either direction).  For example, if it is 15:00:00 and you have an
+  event scheduled for 15:00:05, and the clock jumps back 5 hours to
+  10:00:00, then the event that should have happened in 5 seconds
+  won't happen for 5 hours and 5 seconds.  This function tells the
+  periodic library to detect and handle such and event (by fixing the
+  schedule so that events happen on time).  "interval" is how often to
+  check for a timewarp, and "warptime" is how much of a jump is
+  allowed before the event schedule is fixed.
+
+  You may also pass a pointer to timewarp handler function that will
+  be called so your process can do its own timewarp handling in
+  addition to the above.  You may pass NULL for this if you do not
+  need your own handler function.
+*/
+
+
 int periodic_timewarp(unsigned int interval,unsigned int warptime,
 		      void (*func)(void *),void *arg);
 
