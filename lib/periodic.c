@@ -1,5 +1,7 @@
 static const char RCSID[]="$Id$";
 
+#define DEBUG
+
 /*
   periodic - a library for repeating periodic events
   Copyright (C) 2008 David Shaw, <dshaw@jabberwocky.com>
@@ -26,6 +28,9 @@ static const char RCSID[]="$Id$";
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
+#ifdef DEBUG
+#include <stdio.h>
+#endif
 #include <periodic.h>
 
 static struct periodic_event_t
@@ -86,7 +91,7 @@ unlocker(void *foo)
    It also might be equal to the current time if count>1. */
 
 static struct periodic_event_t *
-dequeue(int *count,time_t *after_occurance)
+dequeue(unsigned int *count,time_t *after_occurance)
 {  
   struct periodic_event_t *last_event=NULL,*next_event;
   int err;
@@ -115,28 +120,14 @@ dequeue(int *count,time_t *after_occurance)
 	      *count=1;
 	      next_occurance=event->next_occurance;
 	      if(next_event)
-		{
-		  *after_occurance=next_event->next_occurance;
-#if 0
-		  printf("After_occurance is now (in) %d\n",*after_occurance);
-#endif
-		}
+		*after_occurance=next_event->next_occurance;
 
 	      next_event=event;
 	      last_event=last;
 	    }
 	  else if(event->next_occurance<*after_occurance)
-	    {
-	      *after_occurance=event->next_occurance;
-#if 0
-	      printf("After_occurance is now %d\n",*after_occurance);
-#endif
-	    }
+	    *after_occurance=event->next_occurance;
 	}
-
-#if 0
-      printf("okay\n");
-#endif
 
       /* Now wait for the event time to arrive. */
 
@@ -195,8 +186,11 @@ dequeue(int *count,time_t *after_occurance)
 
   pthread_mutex_unlock(&event_lock);
 
-  printf("Returning event %d at %d.  Next is at %d.\n",
-	 next_event->interval,next_event->next_occurance,*after_occurance);
+#ifdef DEBUG
+  printf("Returning event interval %u at %d.  Next is at %d.\n",
+	 next_event->interval,(int)next_event->next_occurance,
+	 (int)*after_occurance);
+#endif
 
   return next_event;
 }
@@ -207,15 +201,19 @@ periodic_thread(void *foo)
   for(;;)
     {
       struct periodic_event_t *event;
-      int count;
+      unsigned int count;
       time_t after_occurance;
 
+#ifdef DEBUG
       printf("\n");
+#endif
 
       /* Get it */
       event=dequeue(&count,&after_occurance);
 
-      printf("count %d, after_occurance %d\n",count,after_occurance);
+#ifdef DEBUG
+      printf("Got count %u, after_occurance %d\n",count,(int)after_occurance);
+#endif
 
       /* Execute it */
       (*event->func)(event->arg);
