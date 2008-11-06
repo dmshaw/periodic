@@ -98,7 +98,7 @@ make_new_thread(void)
   pthread_t *new_threads;
   int err;
 
-  debug("\n\nMAKING A NEW THREAD (now have %d)!!!\n\n",num_threads);
+  debug("Making a new thread (will have %d)\n",num_threads+1);
 
   new_threads=realloc(threads,sizeof(pthread_t)*(num_threads+1));
   if(!new_threads)
