@@ -37,6 +37,9 @@ static struct periodic_event_t
 {
   unsigned int interval;
   time_t next_occurance;
+  time_t last_start;
+  unsigned int elapsed;
+  unsigned int count;
   void (*func)(void *);
   void *arg;
   struct
@@ -50,6 +53,7 @@ static pthread_mutex_t event_lock=PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t event_cond=PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t thread_lock=PTHREAD_MUTEX_INITIALIZER;
 static unsigned int num_threads;
+static unsigned int idle_threads;
 static pthread_t *threads;
 static pthread_t timewarp;
 static unsigned int timewarp_interval;
@@ -66,8 +70,12 @@ enqueue(struct periodic_event_t *event)
     free(event);
   else
     {
+      time_t now=time(NULL);
+
       /* Reschedule it */
-      event->next_occurance=time(NULL)+event->interval;
+      event->next_occurance=now+event->interval;
+      event->elapsed+=now-event->last_start;
+      event->count++;
 
       event->next=events;
       events=event;
@@ -93,6 +101,7 @@ static struct periodic_event_t *
 dequeue(unsigned int *count,time_t *after_occurance)
 {  
   struct periodic_event_t *last_event=NULL,*next_event;
+  time_t now;
   int err;
 
   pthread_mutex_lock(&event_lock);
@@ -159,7 +168,10 @@ dequeue(unsigned int *count,time_t *after_occurance)
 	  /* A new event showed up, so recalculate (and put back the
 	     event we were waiting on).  Also double check to cover
 	     for minor clock jitter. */
-	  if(err==0 || time(NULL)<next_occurance)
+
+	  now=time(NULL);
+
+	  if(err==0 || now<next_occurance)
 	    {
 	      next_event->next=events;
 	      events=next_event;
@@ -186,6 +198,22 @@ dequeue(unsigned int *count,time_t *after_occurance)
       break;
     }
 
+  /* Now we have an event, and we know it needs to start now.  We also
+     know how long on average this event takes to run.  Does the next
+     event start before this one is expected to finish?  If so, and we
+     don't have a spare thread handy, then we may have a problem. */
+
+  pthread_mutex_lock(&thread_lock);
+
+  if(idle_threads==0
+     && next_event->count
+     && now+(next_event->elapsed/next_event->count)>*after_occurance)
+    {
+      /* Make a new thread */
+    }
+
+  pthread_mutex_unlock(&thread_lock);
+
   pthread_mutex_unlock(&event_lock);
 
 #ifdef DEBUG
@@ -193,6 +221,8 @@ dequeue(unsigned int *count,time_t *after_occurance)
 	 next_event->interval,(int)next_event->next_occurance,
 	 (int)*after_occurance);
 #endif
+
+  next_event->last_start=now;
 
   return next_event;
 }
@@ -216,6 +246,11 @@ periodic_thread(void *foo)
 #ifdef DEBUG
       printf("Got count %u, after_occurance %d\n",count,(int)after_occurance);
 #endif
+
+      if(event->count)
+	printf("Average for %u is %u\n",event->interval,event->elapsed/event->count);
+
+      event->last_start=time(NULL);
 
       /* Execute it */
       (*event->func)(event->arg);
