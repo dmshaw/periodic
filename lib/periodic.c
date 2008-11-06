@@ -343,19 +343,10 @@ unprepare(void)
   pthread_mutex_unlock(&event_lock);
 }
 
-static void
-setup_atfork(void)
-{
-  pthread_atfork(prepare,unprepare,unprepare);
-}
-
 int
 periodic_start(unsigned int concurrency,unsigned int flags)
 {
-  static pthread_once_t once=PTHREAD_ONCE_INIT;
   int err;
-
-  pthread_once(&once,setup_atfork);
 
   if(concurrency==0)
     {
@@ -369,6 +360,14 @@ periodic_start(unsigned int concurrency,unsigned int flags)
     {
       pthread_mutex_unlock(&thread_lock);
       errno=EBUSY;
+      return -1;
+    }
+
+  err=pthread_atfork(prepare,unprepare,unprepare);
+  if(err)
+    {
+      pthread_mutex_unlock(&thread_lock);
+      errno=err;
       return -1;
     }
 
