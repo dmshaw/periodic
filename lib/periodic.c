@@ -37,7 +37,6 @@ static struct periodic_event_t
 {
   unsigned int interval;
   time_t next_occurance;
-  time_t base_time;
   void (*func)(void *);
   void *arg;
   struct
