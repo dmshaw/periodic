@@ -30,6 +30,9 @@ static const char RCSID[]="$Id$";
 #include <unistd.h>
 #ifdef DEBUG
 #include <stdio.h>
+#define debug(_fmt,_vargs...) fprintf(stderr,(_fmt),##_vargs)
+#else
+#define debug(_fmt,_vargs...)
 #endif
 #include <periodic.h>
 
@@ -99,14 +102,11 @@ make_new_thread(void)
   pthread_t *new_threads;
   int err;
 
-  printf("\n\nMAKING A NEW THREAD (now have %d)!!!\n\n",num_threads);
+  debug("\n\nMAKING A NEW THREAD (now have %d)!!!\n\n",num_threads);
 
   new_threads=realloc(threads,sizeof(pthread_t)*(num_threads+1));
   if(!new_threads)
-    {
-      errno=ENOMEM;
-      return -1;
-    }
+    return ENOMEM;
 
   threads=new_threads;
 
@@ -121,8 +121,7 @@ make_new_thread(void)
     {
       /* We don't even try to lower the size of the threads array.  At
 	 worst, we're wasting sizeof(pthread_t). */
-      errno=err;
-      return -1;
+      return err;
     }
 }
 
@@ -388,20 +387,15 @@ unprepare(void)
 }
 
 int
-periodic_start(unsigned int concurrency,unsigned int flags)
+periodic_start(unsigned int flags)
 {
   int err;
-
-  if(concurrency==0)
-    {
-      errno=EINVAL;
-      return -1;
-    }
 
   pthread_mutex_lock(&thread_lock);
 
   if(num_threads)
     {
+      /* We're already running. */
       pthread_mutex_unlock(&thread_lock);
       errno=EBUSY;
       return -1;
@@ -415,44 +409,29 @@ periodic_start(unsigned int concurrency,unsigned int flags)
       return -1;
     }
 
-  threads=malloc(sizeof(pthread_t)*concurrency);
-  if(!threads)
-    {
-      pthread_mutex_unlock(&thread_lock);
-      errno=ENOMEM;
-      return -1;
-    }
-
   if(flags&PERIODIC_NORETURN)
     {
-      num_threads=1;
+      threads=malloc(sizeof(pthread_t));
+      if(!threads)
+	{
+	  pthread_mutex_unlock(&thread_lock);
+	  errno=ENOMEM;
+	  return -1;
+	}
+
       threads[0]=pthread_self();
       pthread_detach(threads[0]);
-    } 
-
-  for(;num_threads<concurrency;num_threads++)
-    {
-      err=pthread_create(&threads[num_threads],NULL,periodic_thread,NULL);
-      if(err==0)
-	pthread_detach(threads[num_threads]);
-      else
-	break;
+      num_threads=1;
     }
-
-  if(num_threads!=concurrency)
+  else
     {
-      unsigned int i;
-
-      /* We failed somewhere, so clean up. */
-      for(i=0;i<num_threads;i++)
-	if(pthread_self()!=threads[i])
-	  pthread_cancel(threads[i]);
-
-      free(threads);
-      num_threads=0;
-
-      errno=err;
-      return -1;
+      err=make_new_thread();
+      if(err)
+	{
+	  pthread_mutex_unlock(&thread_lock);
+	  errno=err;
+	  return -1;
+	}
     }
 
   pthread_mutex_unlock(&thread_lock);

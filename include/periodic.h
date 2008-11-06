@@ -68,7 +68,7 @@ int periodic_remove(struct periodic_event_t *remove);
 
 #define PERIODIC_NORETURN 1
 
-int periodic_start(unsigned int concurrency,unsigned int flags);
+int periodic_start(unsigned int flags);
 
 /*
   A common problem with programs that use any sort of repeating event
