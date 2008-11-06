@@ -66,7 +66,8 @@ int periodic_remove(struct periodic_event_t *remove);
   becomes one of the pool used to run periodic events.
  */
 
-#define PERIODIC_NORETURN 1
+#define PERIODIC_DEBUG    1
+#define PERIODIC_NORETURN 2
 
 int periodic_start(unsigned int flags);
 

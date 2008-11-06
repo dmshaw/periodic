@@ -1,7 +1,5 @@
 static const char RCSID[]="$Id$";
 
-#define DEBUG
-
 /*
   periodic - a library for repeating periodic events
   Copyright (C) 2008 David Shaw, <dshaw@jabberwocky.com>
@@ -28,12 +26,7 @@ static const char RCSID[]="$Id$";
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
-#ifdef DEBUG
 #include <stdio.h>
-#define debug(_fmt,_vargs...) fprintf(stderr,(_fmt),##_vargs)
-#else
-#define debug(_fmt,_vargs...)
-#endif
 #include <periodic.h>
 
 static struct periodic_event_t
@@ -63,6 +56,9 @@ static unsigned int timewarp_interval;
 static unsigned int timewarp_warptime;
 static void (*timewarp_func)(void *);
 static void *timewarp_arg;
+static unsigned int global_flags;
+
+#define debug(_fmt,_vargs...) do {if(global_flags&PERIODIC_DEBUG) fprintf(stderr,(_fmt),##_vargs); } while(0)
 
 static void *periodic_thread(void *foo);
 
@@ -253,17 +249,15 @@ dequeue(unsigned int *count,time_t *after_occurance)
      && now+(next_event->elapsed/next_event->count)>*after_occurance)
     make_new_thread();
 
-  printf("%d threads, %d idle\n",num_threads,idle_threads);
+  debug("%d threads, %d idle\n",num_threads,idle_threads);
 
   pthread_mutex_unlock(&thread_lock);
 
   pthread_mutex_unlock(&event_lock);
 
-#ifdef DEBUG
-  printf("Returning event interval %u at %d.  Next is at %d.\n",
-	 next_event->interval,(int)next_event->next_occurance,
-	 (int)*after_occurance);
-#endif
+  debug("Returning event interval %u at %d.  Next is at %d.\n",
+	next_event->interval,(int)next_event->next_occurance,
+	(int)*after_occurance);
 
   next_event->last_start=now;
 
@@ -279,19 +273,16 @@ periodic_thread(void *foo)
       unsigned int count;
       time_t after_occurance;
 
-#ifdef DEBUG
-      printf("\n");
-#endif
+      debug("%s","\n");
 
       /* Get it */
       event=dequeue(&count,&after_occurance);
 
-#ifdef DEBUG
-      printf("Got count %u, after_occurance %d\n",count,(int)after_occurance);
-#endif
+      debug("Got count %u, after_occurance %d\n",count,(int)after_occurance);
 
       if(event->count)
-	printf("Average for %u is %u\n",event->interval,event->elapsed/event->count);
+	debug("Average for %u is %u\n",
+	      event->interval,event->elapsed/event->count);
 
       event->last_start=time(NULL);
 
@@ -400,6 +391,8 @@ periodic_start(unsigned int flags)
       errno=EBUSY;
       return -1;
     }
+
+  global_flags=flags;
 
   err=pthread_atfork(prepare,unprepare,unprepare);
   if(err)

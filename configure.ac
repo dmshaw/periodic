@@ -56,7 +56,7 @@ AC_ARG_ENABLE(optimization,
    fi])
 
 if test "$GCC" = yes; then
-   CFLAGS="-Wall -pedantic $CFLAGS"
+   CFLAGS="-Wall -Wno-variadic-macros -pedantic $CFLAGS"
 fi
 
 AC_CONFIG_FILES([Makefile lib/Makefile examples/Makefile periodic.pc periodic.spec])

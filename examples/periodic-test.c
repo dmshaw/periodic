@@ -49,7 +49,7 @@ main(int argc,char *argv[])
 
   periodic_add(5,PERIODIC_DELAY|PERIODIC_ONESHOT,oneshot,(void *)0x5678);
 
-  periodic_start(0);
+  periodic_start(PERIODIC_DEBUG);
 
   sleep(5);
 
