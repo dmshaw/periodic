@@ -61,6 +61,8 @@ static unsigned int timewarp_warptime;
 static void (*timewarp_func)(void *);
 static void *timewarp_arg;
 
+static void *periodic_thread(void *foo);
+
 static void
 enqueue(struct periodic_event_t *event)
 {
@@ -90,6 +92,40 @@ unlocker(void *foo)
   pthread_mutex_unlock(&event_lock);
 }
 
+/* Called with thread_lock locked */
+static int
+make_new_thread(void)
+{
+  pthread_t *new_threads;
+  int err;
+
+  printf("\n\nMAKING A NEW THREAD (now have %d)!!!\n\n",num_threads);
+
+  new_threads=realloc(threads,sizeof(pthread_t)*(num_threads+1));
+  if(!new_threads)
+    {
+      errno=ENOMEM;
+      return -1;
+    }
+
+  threads=new_threads;
+
+  err=pthread_create(&threads[num_threads],NULL,periodic_thread,NULL);
+  if(err==0)
+    {
+      pthread_detach(threads[num_threads]);
+      num_threads++;
+      return 0;
+    }
+  else
+    {
+      /* We don't even try to lower the size of the threads array.  At
+	 worst, we're wasting sizeof(pthread_t). */
+      errno=err;
+      return -1;
+    }
+}
+
 /* count is the number of items that should be happening right now.
    If it is more than 1, and we don't have a spare thread, then
    someone is going to wait.  This might be a problem if the event
@@ -103,6 +139,12 @@ dequeue(unsigned int *count,time_t *after_occurance)
   struct periodic_event_t *last_event=NULL,*next_event;
   time_t now;
   int err;
+
+  pthread_mutex_lock(&thread_lock);
+
+  idle_threads++;
+
+  pthread_mutex_unlock(&thread_lock);
 
   pthread_mutex_lock(&event_lock);
 
@@ -205,12 +247,14 @@ dequeue(unsigned int *count,time_t *after_occurance)
 
   pthread_mutex_lock(&thread_lock);
 
+  idle_threads--;
+
   if(idle_threads==0
      && next_event->count
      && now+(next_event->elapsed/next_event->count)>*after_occurance)
-    {
-      /* Make a new thread */
-    }
+    make_new_thread();
+
+  printf("%d threads, %d idle\n",num_threads,idle_threads);
 
   pthread_mutex_unlock(&thread_lock);
 
