@@ -135,6 +135,14 @@ dequeue(unsigned int *count,time_t *after_occurance)
 	{
 	  struct timespec timeout;
 
+	  /* Remove the event from the list */
+	  if(last_event)
+	    last_event->next=next_event->next;
+	  else
+	    events=next_event->next;
+
+	  next_event->next=NULL;
+
 	  timeout.tv_sec=next_occurance;
 	  timeout.tv_nsec=0;
 
@@ -149,10 +157,15 @@ dequeue(unsigned int *count,time_t *after_occurance)
 
 	  pthread_cleanup_pop(0);
 
-	  /* A new event showed up, so recalculate.  Also double check
-	     to cover for minor clock jitter. */
+	  /* A new event showed up, so recalculate (and put back the
+	     event we were waiting on).  Also double check to cover
+	     for minor clock jitter. */
 	  if(err==0 || time(NULL)<next_occurance)
-	    continue;
+	    {
+	      next_event->next=events;
+	      events=next_event;
+	      continue;
+	    }
 	}
       else
 	{
@@ -172,16 +185,6 @@ dequeue(unsigned int *count,time_t *after_occurance)
 	 reached. */
 
       break;
-    }
-
-  if(next_event)
-    {
-      if(last_event)
-	last_event->next=next_event->next;
-      else
-	events=next_event->next;
-
-      next_event->next=NULL;
     }
 
   pthread_mutex_unlock(&event_lock);
@@ -286,7 +289,7 @@ periodic_remove(struct periodic_event_t *remove)
 	 event, which will be deleted when the thread that is running
 	 it tries to re-enqueue it. */
 
-      event->flags.oneshot=1;
+      remove->flags.oneshot=1;
     }
 
   pthread_mutex_unlock(&event_lock);
