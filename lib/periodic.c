@@ -40,7 +40,7 @@ static struct periodic_event_t
   time_t last_start;
   unsigned int elapsed;
   unsigned int count;
-  void (*func)(void *);
+  void (*func)(time_t,void *);
   void *arg;
   struct
   {
@@ -297,7 +297,7 @@ periodic_thread(void *foo)
       event->last_start=time(NULL);
 
       /* Execute it */
-      (*event->func)(event->arg);
+      (*event->func)(event->last_start,event->arg);
 
       /* Give it back */
       enqueue(event);
@@ -309,7 +309,7 @@ periodic_thread(void *foo)
 
 struct periodic_event_t *
 periodic_add(unsigned int interval,unsigned int flags,
-	     void (*func)(void *),void *arg)
+	     void (*func)(time_t,void *),void *arg)
 {
   struct periodic_event_t *event;
 

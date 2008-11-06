@@ -47,7 +47,7 @@
 #define PERIODIC_ONESHOT 2
 
 struct periodic_event_t *periodic_add(unsigned int interval,unsigned int flags,
-				      void (*func)(void *),void *arg);
+				      void (*func)(time_t,void *),void *arg);
 
 /*
   Call this function a remove an event from the queue.  Pass the
