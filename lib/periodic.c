@@ -54,7 +54,7 @@ static pthread_t *threads;
 static pthread_t timewarp;
 static unsigned int timewarp_interval;
 static unsigned int timewarp_warptime;
-static void (*timewarp_func)(void *);
+static void (*timewarp_func)(time_t,void *);
 static void *timewarp_arg;
 static unsigned int global_flags;
 
@@ -448,7 +448,7 @@ timewarp_thread(void *foo)
 	  /* We've jumped more than warptime seconds. */
 
 	  if(timewarp_func)
-	    (timewarp_func)(timewarp_arg);
+	    (timewarp_func)(now,timewarp_arg);
 
 	  /* Wake everyone up and make them recalibrate. */
 
@@ -477,7 +477,7 @@ timewarp_thread(void *foo)
 
 int
 periodic_timewarp(unsigned int interval,unsigned int warptime,
-		  void (*func)(void *),void *arg)
+		  void (*func)(time_t,void *),void *arg)
 {
   if(interval)
     {

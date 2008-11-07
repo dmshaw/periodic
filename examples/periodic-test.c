@@ -31,7 +31,7 @@ oneshot(time_t now,void *foo)
 }
 
 static void
-timewarp(void *foo)
+timewarp(time_t now,void *foo)
 {
   printf("TIMEWARP!\n");
 }

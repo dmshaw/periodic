@@ -89,8 +89,7 @@ int periodic_start(unsigned int flags);
   need your own handler function.
 */
 
-
 int periodic_timewarp(unsigned int interval,unsigned int warptime,
-		      void (*func)(void *),void *arg);
+		      void (*func)(time_t,void *),void *arg);
 
 #endif /* !_PERIODIC_H_ */
