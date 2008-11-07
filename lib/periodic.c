@@ -271,8 +271,6 @@ periodic_thread(void *foo)
       /* Get it */
       event=dequeue();
 
-      event->last_start=time(NULL);
-
       /* Execute it */
       (*event->func)(event->last_start,event->arg);
 
