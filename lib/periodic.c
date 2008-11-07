@@ -129,7 +129,7 @@ make_new_thread(void)
    It also might be equal to the current time if count>1. */
 
 static struct periodic_event_t *
-dequeue(unsigned int *count,time_t *after_occurance)
+dequeue(time_t *after_occurance)
 {  
   struct periodic_event_t *last_event=NULL,*next_event;
   time_t now;
@@ -150,19 +150,13 @@ dequeue(unsigned int *count,time_t *after_occurance)
 
       *after_occurance=0x7FFFFFFF; /* 2038 */
 
-      *count=0;
-
       next_event=NULL;
 
       /* Find the next event to occur */
       for(event=events;event;last=event,event=event->next)
 	{
-	  if(event->next_occurance==next_occurance)
-	    (*count)++;
-
 	  if(event->next_occurance<next_occurance)
 	    {
-	      *count=1;
 	      next_occurance=event->next_occurance;
 	      if(next_event)
 		*after_occurance=next_event->next_occurance;
@@ -270,15 +264,14 @@ periodic_thread(void *foo)
   for(;;)
     {
       struct periodic_event_t *event;
-      unsigned int count;
       time_t after_occurance;
 
       debug("%s","\n");
 
       /* Get it */
-      event=dequeue(&count,&after_occurance);
+      event=dequeue(&after_occurance);
 
-      debug("Got count %u, after_occurance %d\n",count,(int)after_occurance);
+      debug("Got after_occurance %d\n",(int)after_occurance);
 
       if(event->count)
 	debug("Average for %u is %u\n",
