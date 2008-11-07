@@ -28,10 +28,10 @@
   often (in seconds) you want this function to run.  The func is a
   function with the following prototype:
 
-    void my_function(void *arg)
+    void my_function(time_t now,void *arg)
 
-  "arg" is passed as the last argument to periodic_event, and is
-  passed through to the func.
+  "now" is the current time.  "arg" is passed as the last argument to
+  periodic_event, and is passed through to the func.
 
   The flags field can be any number of the PERIODIC_xxx flags above,
   ORed together.  DELAY means to start the event after the interval
