@@ -75,9 +75,9 @@ int periodic_start(unsigned int flags);
   A common problem with programs that use any sort of repeating event
   is what to do in the case of a time warp (i.e. a clock that jumps in
   either direction).  For example, if it is 15:00:00 and you have an
-  event scheduled for 15:00:05, and the clock jumps back 5 hours to
-  10:00:00, then the event that should have happened in 5 seconds
-  won't happen for 5 hours and 5 seconds.  This function tells the
+  event scheduled for 15:00:08, and the clock jumps back 5 hours to
+  10:00:00, then the event that should have happened in 8 seconds
+  won't happen for 5 hours and 8 seconds.  This function tells the
   periodic library to detect and handle such and event (by fixing the
   schedule so that events happen on time).  "interval" is how often to
   check for a timewarp, and "warptime" is how much of a jump is
@@ -86,7 +86,8 @@ int periodic_start(unsigned int flags);
   You may also pass a pointer to timewarp handler function that will
   be called so your process can do its own timewarp handling in
   addition to the above.  You may pass NULL for this if you do not
-  need your own handler function.
+  need your own handler function.  The prototype for this handler is
+  the same as a periodic event.
 */
 
 int periodic_timewarp(unsigned int interval,unsigned int warptime,
