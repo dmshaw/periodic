@@ -129,11 +129,13 @@ make_new_thread(void)
    It also might be equal to the current time if count>1. */
 
 static struct periodic_event_t *
-dequeue(time_t *after_occurance)
+dequeue(void)
 {  
   struct periodic_event_t *last_event=NULL,*next_event;
-  time_t now;
+  time_t now,after_occurance;
   int err;
+
+  debug("%s","\n");
 
   pthread_mutex_lock(&thread_lock);
 
@@ -148,7 +150,7 @@ dequeue(time_t *after_occurance)
       struct periodic_event_t *event,*last=NULL;
       time_t next_occurance=0x7FFFFFFF; /* 2038 */
 
-      *after_occurance=0x7FFFFFFF; /* 2038 */
+      after_occurance=0x7FFFFFFF; /* 2038 */
 
       next_event=NULL;
 
@@ -159,13 +161,13 @@ dequeue(time_t *after_occurance)
 	    {
 	      next_occurance=event->next_occurance;
 	      if(next_event)
-		*after_occurance=next_event->next_occurance;
+		after_occurance=next_event->next_occurance;
 
 	      next_event=event;
 	      last_event=last;
 	    }
-	  else if(event->next_occurance<*after_occurance)
-	    *after_occurance=event->next_occurance;
+	  else if(event->next_occurance<after_occurance)
+	    after_occurance=event->next_occurance;
 	}
 
       /* Now wait for the event time to arrive. */
@@ -187,8 +189,8 @@ dequeue(time_t *after_occurance)
 
 	  /* Is our own event going to happen again before the next
 	     event? */
-	  if(next_event->next_occurance+next_event->interval<*after_occurance)
-	    *after_occurance=next_event->next_occurance+next_event->interval;
+	  if(next_event->next_occurance+next_event->interval<after_occurance)
+	    after_occurance=next_event->next_occurance+next_event->interval;
 
 	  pthread_cleanup_push(unlocker,NULL);
 
@@ -240,7 +242,7 @@ dequeue(time_t *after_occurance)
 
   if(idle_threads==0
      && next_event->count
-     && now+(next_event->elapsed/next_event->count)>*after_occurance)
+     && now+(next_event->elapsed/next_event->count)>after_occurance)
     make_new_thread();
 
   debug("%d threads, %d idle\n",num_threads,idle_threads);
@@ -249,9 +251,10 @@ dequeue(time_t *after_occurance)
 
   pthread_mutex_unlock(&event_lock);
 
-  debug("Returning event interval %u at %d.  Next is at %d.\n",
+  debug("Returning event interval %u at %d.  Average is %u.  Next is at %d.\n",
 	next_event->interval,(int)next_event->next_occurance,
-	(int)*after_occurance);
+	next_event->count?next_event->elapsed/next_event->count:0,
+	(int)after_occurance);
 
   next_event->last_start=now;
 
@@ -264,18 +267,9 @@ periodic_thread(void *foo)
   for(;;)
     {
       struct periodic_event_t *event;
-      time_t after_occurance;
-
-      debug("%s","\n");
 
       /* Get it */
-      event=dequeue(&after_occurance);
-
-      debug("Got after_occurance %d\n",(int)after_occurance);
-
-      if(event->count)
-	debug("Average for %u is %u\n",
-	      event->interval,event->elapsed/event->count);
+      event=dequeue();
 
       event->last_start=time(NULL);
 
