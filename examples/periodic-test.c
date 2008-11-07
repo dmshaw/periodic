@@ -33,7 +33,7 @@ oneshot(time_t now,void *foo)
 static void
 timewarp(time_t now,void *foo)
 {
-  printf("TIMEWARP!\n");
+  printf("TIMEWARP: It is %d and my arg is %p\n",(int)now,foo);
 }
 
 int
