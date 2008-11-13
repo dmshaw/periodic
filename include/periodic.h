@@ -74,6 +74,13 @@ int periodic_remove(struct periodic_event_t *remove);
 int periodic_start(unsigned int flags);
 
 /*
+  Stops calling periodic events.  Note that this does not remove any
+  events from the queue.
+ */
+
+int periodic_stop(unsigned int flags);
+
+/*
   A common problem with programs that use any sort of repeating event
   is what to do in the case of a time warp (i.e. a clock that jumps in
   either direction).  For example, if it is 15:00:00 and you have an

@@ -420,6 +420,32 @@ periodic_start(unsigned int flags)
   return 0;
 }
 
+int
+periodic_stop(unsigned int flags)
+{
+  unsigned int i;
+
+  pthread_mutex_lock(&thread_lock);
+
+  if(!num_threads)
+    {
+      /* We're not running. */
+      pthread_mutex_unlock(&thread_lock);
+      errno=EBUSY;
+      return -1;
+    }
+
+  for(i=0;i<num_threads;i++)
+    pthread_cancel(threads[i]);
+
+  free(threads);
+  num_threads=0;
+
+  pthread_mutex_unlock(&thread_lock);
+
+  return 0;
+}
+
 static void *
 timewarp_thread(void *foo)
 {
