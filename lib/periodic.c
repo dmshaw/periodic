@@ -121,7 +121,6 @@ make_new_thread(void)
   err=pthread_create(&threads[num_threads],NULL,periodic_thread,NULL);
   if(err==0)
     {
-      pthread_detach(threads[num_threads]);
       num_threads++;
       return 0;
     }
@@ -418,7 +417,6 @@ periodic_start(unsigned int flags)
 	}
 
       threads[0]=pthread_self();
-      pthread_detach(threads[0]);
       num_threads=1;
     }
   else
@@ -456,7 +454,16 @@ periodic_stop(unsigned int flags)
     }
 
   for(i=0;i<num_threads;i++)
-    pthread_cancel(threads[i]);
+    {
+      if(!(flags&PERIODIC_WAIT))
+	pthread_detach(threads[i]);
+
+      pthread_cancel(threads[i]);
+    }
+
+  if(flags&PERIODIC_WAIT)
+    for(i=0;i<num_threads;i++)
+      pthread_join(threads[i],NULL);
 
   free(threads);
   num_threads=0;

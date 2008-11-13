@@ -75,8 +75,12 @@ int periodic_start(unsigned int flags);
 
 /*
   Stops calling periodic events.  Note that this does not remove any
-  events from the queue.
+  events from the queue.  PERIODIC_WAIT means to wait for all threads
+  to exit.  Otherwise, the threads are signalled to exit and may exit
+  after periodic_stop() returns.
  */
+
+#define PERIODIC_WAIT 1
 
 int periodic_stop(unsigned int flags);
 
