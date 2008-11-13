@@ -455,7 +455,12 @@ timewarp_thread(void *foo)
 	  /* Recalculate everyone */
 
 	  for(event=events;event;event=event->next)
-	    event->next_occurance=now+event->interval;
+	    {
+	      event->next_occurance=now+event->interval;
+	      event->last_start=0;
+	      event->elapsed=0;
+	      event->count=0;
+	    }
 
 	  pthread_cond_broadcast(&event_cond);
 	  pthread_mutex_unlock(&event_lock);
