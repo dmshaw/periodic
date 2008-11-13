@@ -63,8 +63,10 @@ static unsigned int global_flags;
 static void *periodic_thread(void *foo);
 
 static void
-enqueue(struct periodic_event_t *event)
+enqueue(void *e)
 {
+  struct periodic_event_t *event=e;
+
   pthread_mutex_lock(&event_lock);
 
   if(event->flags.oneshot)
@@ -271,11 +273,13 @@ periodic_thread(void *foo)
       /* Get it */
       event=dequeue();
 
+      pthread_cleanup_push(enqueue,event);
+
       /* Execute it */
       (*event->func)(event->last_start,event->arg);
 
       /* Give it back */
-      enqueue(event);
+      pthread_cleanup_pop(1);
     }
 
   /* Never reached */
