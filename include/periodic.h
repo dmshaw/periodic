@@ -23,6 +23,8 @@
 #ifndef _PERIODIC_H_
 #define _PERIODIC_H_
 
+#include <time.h>
+
 /*
   Call this function to add an event to the queue.  Interval is how
   often (in seconds) you want this function to run.  The func is a
