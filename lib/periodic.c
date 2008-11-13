@@ -62,6 +62,16 @@ static unsigned int global_flags;
 
 static void *periodic_thread(void *foo);
 
+/* Called with event_lock locked */
+static void
+attach(void *e)
+{
+  struct periodic_event_t *event=e;
+
+  event->next=events;
+  events=event;
+}
+
 static void
 enqueue(void *e)
 {
@@ -194,10 +204,12 @@ dequeue(void)
 	  if(next_event->next_occurance+next_event->interval<after_occurance)
 	    after_occurance=next_event->next_occurance+next_event->interval;
 
+	  pthread_cleanup_push(attach,next_event);
 	  pthread_cleanup_push(unlocker,NULL);
 
 	  err=pthread_cond_timedwait(&event_cond,&event_lock,&timeout);
 
+	  pthread_cleanup_pop(0);
 	  pthread_cleanup_pop(0);
 
 	  /* A new event showed up, so recalculate (and put back the
@@ -242,6 +254,8 @@ dequeue(void)
 
   idle_threads--;
 
+  pthread_cleanup_push(attach,next_event);
+
   if(idle_threads==0
      && next_event->count
      && now+(next_event->elapsed/next_event->count)>after_occurance)
@@ -251,12 +265,14 @@ dequeue(void)
 
   pthread_mutex_unlock(&thread_lock);
 
-  pthread_mutex_unlock(&event_lock);
-
   debug("Returning event interval %u at %d.  Average is %u.  Next is at %d.\n",
 	next_event->interval,(int)next_event->next_occurance,
 	next_event->count?next_event->elapsed/next_event->count:0,
 	(int)after_occurance);
+
+  pthread_cleanup_pop(0);
+
+  pthread_mutex_unlock(&event_lock);
 
   next_event->last_start=now;
 
