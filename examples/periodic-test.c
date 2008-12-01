@@ -41,6 +41,9 @@ main(int argc,char *argv[])
 {
   struct periodic_event_t *event1;
 
+  (void)argc;
+  (void)argv;
+
   periodic_timewarp(1,0,timewarp,NULL);
 
   event1=periodic_add(1,0,one,(void *)0x1234);
