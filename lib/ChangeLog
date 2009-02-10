@@ -1,0 +1,7 @@
+2009-02-10  David Shaw  <dshaw@jabberwocky.com>
+
+	* periodic.c (gettime): New.  Time function that will try for a
+	monotonic clock (if one exists) before resorting to regular system
+	time.  Change all callers from time(NULL) to this.
+
+$Id$

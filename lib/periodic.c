@@ -2,7 +2,7 @@ static const char RCSID[]="$Id$";
 
 /*
   periodic - a library for repeating periodic events
-  Copyright (C) 2008 David Shaw, <dshaw@jabberwocky.com>
+  Copyright (C) 2008, 2009 David Shaw, <dshaw@jabberwocky.com>
 
   This library is free software; you can redistribute it and/or modify
   it under the terms of the GNU Lesser General Public License as
@@ -62,6 +62,26 @@ static unsigned int global_flags;
 
 static void *periodic_thread(void *foo);
 
+/* Do the best we can here.  We want to return time from the monotonic
+   clock, but it might not exist on this platform. */
+static time_t
+gettime(void)
+{
+#ifdef HAVE_CLOCK_GETTIME
+
+#ifndef CLOCK_MONOTONIC
+#define CLOCK_MONOTONIC CLOCK_REALTIME
+#endif
+
+  struct timespec ts;
+
+  if(clock_gettime(CLOCK_MONOTONIC,&ts)==0)
+    return ts.tv_sec;
+  else
+#endif /* HAVE_CLOCK_GETTIME */
+    return time(NULL);
+}
+
 /* Called with event_lock locked */
 static void
 attach(void *e)
@@ -83,7 +103,7 @@ enqueue(void *e)
     free(event);
   else
     {
-      time_t now=time(NULL);
+      time_t now=gettime();
 
       /* Reschedule it */
       event->next_occurance=now+event->interval;
@@ -215,7 +235,7 @@ dequeue(void)
 	     event we were waiting on).  Also double check to cover
 	     for minor clock jitter. */
 
-	  now=time(NULL);
+	  now=gettime();
 
 	  if(err==0 || now<next_occurance)
 	    {
@@ -319,7 +339,7 @@ periodic_add(unsigned int interval,unsigned int flags,
   event->arg=arg;
 
   if(flags&PERIODIC_DELAY)
-    event->next_occurance=time(NULL)+interval;
+    event->next_occurance=gettime()+interval;
 
   if(flags&PERIODIC_ONESHOT)
     event->flags.oneshot=1;
@@ -476,7 +496,7 @@ periodic_stop(unsigned int flags)
 static void *
 timewarp_thread(void *foo)
 {
-  time_t last_time=time(NULL);
+  time_t last_time=gettime();
 
   for(;;)
     {
@@ -486,7 +506,7 @@ timewarp_thread(void *foo)
       while(remaining)
 	remaining=sleep(remaining);
 
-      now=time(NULL);
+      now=gettime();
 
       /* last_time+timewarp->interval is where we should be, if there
 	 was no timewarp. */
@@ -521,7 +541,7 @@ timewarp_thread(void *foo)
 	  /* This is because the timewarp_func may take a while to
 	     execute */
 
-	  now=time(NULL);
+	  now=gettime();
 	}
 
       last_time=now;
