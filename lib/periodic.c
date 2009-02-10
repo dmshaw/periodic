@@ -46,7 +46,7 @@ static struct periodic_event_t
 } *events=NULL;
 
 static pthread_mutex_t event_lock=PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t event_cond=PTHREAD_COND_INITIALIZER;
+static pthread_cond_t event_cond;
 static pthread_mutex_t thread_lock=PTHREAD_MUTEX_INITIALIZER;
 static unsigned int num_threads;
 static unsigned int idle_threads;
@@ -405,6 +405,27 @@ int
 periodic_start(unsigned int flags)
 {
   int err;
+  pthread_condattr_t attr;
+
+  if((err=pthread_condattr_init(&attr)))
+    {
+      errno=err;
+      return -1;
+    }
+
+#ifdef HAVE_PTHREAD_CONDATTR_SETCLOCK
+  if((err=pthread_condattr_setclock(&attr,CLOCK_MONOTONIC)))
+    {
+      errno=err;
+      return -1;
+    }
+#endif /* HAVE_PTHREAD_CONDATTR_SETCLOCK */
+
+  if((err=pthread_cond_init(&event_cond,&attr)))
+    {
+      errno=err;
+      return -1;
+    }
 
   pthread_mutex_lock(&thread_lock);
 

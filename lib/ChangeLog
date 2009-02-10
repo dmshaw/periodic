@@ -3,5 +3,7 @@
 	* periodic.c (gettime): New.  Time function that will try for a
 	monotonic clock (if one exists) before resorting to regular system
 	time.  Change all callers from time(NULL) to this.
+	(periodic_start): Use the monotonic clock in the event condition
+	as well.
 
 $Id$
