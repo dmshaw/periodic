@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 #
 # periodic - a library for repeating periodic events
-# Copyright (C) 2008, David Shaw <dshaw@jabberwocky.com>
+# Copyright (C) 2008, 2009, David Shaw <dshaw@jabberwocky.com>
 #
 # This library is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as
@@ -48,6 +48,8 @@ LIBS=$_save_libs
 AC_C_CONST
 
 # Checks for library functions.
+AC_SEARCH_LIBS(clock_gettime,rt,AC_DEFINE(HAVE_CLOCK_GETTIME,1,[Have it]))
+AC_SEARCH_LIBS(pthread_condattr_setclock,rt,AC_DEFINE(HAVE_PTHREAD_CONDADDR_SETCLOCK,1,[Have it]))
 
 AC_ARG_ENABLE(optimization,
    AS_HELP_STRING([--disable-optimization],[disable compiler optimization]),

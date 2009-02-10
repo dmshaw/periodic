@@ -1,1 +1,6 @@
+2009-02-10  David Shaw  <dshaw@jabberwocky.com>
+
+	* configure.ac: Check for clock_gettime and
+	pthread_condattr_setclock
+
 $Id$
