@@ -21,8 +21,8 @@
 
 AC_PREREQ(2.61)
 AC_REVISION($Id$)
-AC_COPYRIGHT([Copyright (C) 2008, David Shaw <dshaw@jabberwocky.com>])
-AC_INIT([periodic],[0.5],[dshaw@jabberwocky.com])
+AC_COPYRIGHT([Copyright (C) 2008, 2009, David Shaw <dshaw@jabberwocky.com>])
+AC_INIT([periodic],[0.6],[dshaw@jabberwocky.com])
 AC_CONFIG_SRCDIR([lib/periodic.c])
 AC_CONFIG_HEADER([config.h])
 AM_INIT_AUTOMAKE([std-options])

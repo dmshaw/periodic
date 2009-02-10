@@ -2,7 +2,7 @@
 
 /*
   periodic - a library for repeating periodic events
-  Copyright (C) 2008 David Shaw, <dshaw@jabberwocky.com>
+  Copyright (C) 2008, 2009 David Shaw, <dshaw@jabberwocky.com>
 
   This library is free software; you can redistribute it and/or modify
   it under the terms of the GNU Lesser General Public License as
@@ -30,7 +30,7 @@
   often (in seconds) you want this function to run.  The func is a
   function with the following prototype:
 
-    void my_function(time_t now,void *arg)
+    void my_function(void *arg)
 
   "now" is the current time.  "arg" is passed as the last argument to
   periodic_event, and is passed through to the func.
@@ -49,7 +49,7 @@
 #define PERIODIC_ONESHOT 2
 
 struct periodic_event_t *periodic_add(unsigned int interval,unsigned int flags,
-				      void (*func)(time_t,void *),void *arg);
+				      void (*func)(void *),void *arg);
 
 /*
   Call this function a remove an event from the queue.  Pass the
@@ -104,6 +104,6 @@ int periodic_stop(unsigned int flags);
 */
 
 int periodic_timewarp(unsigned int interval,unsigned int warptime,
-		      void (*func)(time_t,void *),void *arg);
+		      void (*func)(void *),void *arg);
 
 #endif /* !_PERIODIC_H_ */
