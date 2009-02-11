@@ -416,6 +416,7 @@ periodic_start(unsigned int flags)
 #ifdef HAVE_PTHREAD_CONDATTR_SETCLOCK
   if((err=pthread_condattr_setclock(&attr,CLOCK_MONOTONIC)))
     {
+      pthread_condattr_destroy(&attr);
       errno=err;
       return -1;
     }
@@ -423,9 +424,12 @@ periodic_start(unsigned int flags)
 
   if((err=pthread_cond_init(&event_cond,&attr)))
     {
+      pthread_condattr_destroy(&attr);
       errno=err;
       return -1;
     }
+
+  pthread_condattr_destroy(&attr);
 
   pthread_mutex_lock(&thread_lock);
 
