@@ -101,6 +101,12 @@ int periodic_stop(unsigned int flags);
   addition to the above.  You may pass NULL for this if you do not
   need your own handler function.  The prototype for this handler is
   the same as a periodic event.
+
+  Note that periodic will use a monotonic clock on those platforms
+  that support it.  This makes it immune from timewarps for its own
+  events (i.e. things added via periodic_add), but you may still need
+  this function for other purposes if your program uses wall-clock
+  time.
 */
 
 int periodic_timewarp(unsigned int interval,unsigned int warptime,
