@@ -22,7 +22,7 @@
 AC_PREREQ(2.61)
 AC_REVISION($Id$)
 AC_COPYRIGHT([Copyright (C) 2008, 2009, David Shaw <dshaw@jabberwocky.com>])
-AC_INIT([periodic],[0.6],[dshaw@jabberwocky.com])
+AC_INIT([periodic],[0.7],[dshaw@jabberwocky.com])
 AC_CONFIG_SRCDIR([lib/periodic.c])
 AC_CONFIG_HEADER([config.h])
 AM_INIT_AUTOMAKE([std-options])
@@ -49,7 +49,7 @@ AC_C_CONST
 
 # Checks for library functions.
 AC_SEARCH_LIBS(clock_gettime,rt,AC_DEFINE(HAVE_CLOCK_GETTIME,1,[Have it]))
-AC_SEARCH_LIBS(pthread_condattr_setclock,rt,AC_DEFINE(HAVE_PTHREAD_CONDADDR_SETCLOCK,1,[Have it]))
+AC_SEARCH_LIBS(pthread_condattr_setclock,rt,AC_DEFINE(HAVE_PTHREAD_CONDATTR_SETCLOCK,1,[Have it]))
 
 AC_ARG_ENABLE(optimization,
    AS_HELP_STRING([--disable-optimization],[disable compiler optimization]),
