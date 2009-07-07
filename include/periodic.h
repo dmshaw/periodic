@@ -25,6 +25,10 @@
 
 #include <time.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*
   Call this function to add an event to the queue.  Interval is how
   often (in seconds) you want this function to run.  The func is a
@@ -111,5 +115,9 @@ int periodic_stop(unsigned int flags);
 
 int periodic_timewarp(unsigned int interval,unsigned int warptime,
 		      void (*func)(void *),void *arg);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* !_PERIODIC_H_ */
