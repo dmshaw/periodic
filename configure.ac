@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 #
 # periodic - a library for repeating periodic events
-# Copyright (C) 2008, 2009, David Shaw <dshaw@jabberwocky.com>
+# Copyright (C) 2008, 2009, 2010, David Shaw <dshaw@jabberwocky.com>
 #
 # This library is free software; you can redistribute it and/or modify
 # it under the terms of the GNU Lesser General Public License as
@@ -25,6 +25,7 @@ AC_COPYRIGHT([Copyright (C) 2008, 2009, David Shaw <dshaw@jabberwocky.com>])
 AC_INIT([periodic],[0.8],[dshaw@jabberwocky.com])
 AC_CONFIG_SRCDIR([lib/periodic.c])
 AC_CONFIG_HEADER([config.h])
+AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([std-options])
 
 # Checks for programs.
