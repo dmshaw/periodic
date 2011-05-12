@@ -19,7 +19,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
 # 02110-1301, USA
 
-AC_PREREQ(2.61)
+AC_PREREQ(2.63)
 AC_REVISION($Id$)
 AC_COPYRIGHT([Copyright (C) 2008, 2009, David Shaw <dshaw@jabberwocky.com>])
 AC_INIT([periodic],[0.8.1],[dshaw@jabberwocky.com])
@@ -30,7 +30,7 @@ AM_INIT_AUTOMAKE([std-options])
 
 # Checks for programs.
 AC_PROG_CC
-AC_PROG_LIBTOOL
+LT_INIT
 
 # Checks for libraries.
 AC_MSG_CHECKING([for pthreads])
