@@ -22,7 +22,7 @@
 AC_PREREQ(2.63)
 AC_REVISION($Id$)
 AC_COPYRIGHT([Copyright (C) 2008, 2009, 2010, 2011 David Shaw <dshaw@jabberwocky.com>])
-AC_INIT([periodic],[0.8.2],[dshaw@jabberwocky.com])
+AC_INIT([periodic],[0.8.3],[dshaw@jabberwocky.com])
 AC_CONFIG_SRCDIR([lib/periodic.c])
 AC_CONFIG_HEADER([config.h])
 AC_CONFIG_MACRO_DIR([m4])
