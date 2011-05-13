@@ -2,7 +2,7 @@ static const char RCSID[]="$Id$";
 
 /*
   periodic - a library for repeating periodic events
-  Copyright (C) 2008, 2009 David Shaw, <dshaw@jabberwocky.com>
+  Copyright (C) 2008, 2009, 2011 David Shaw, <dshaw@jabberwocky.com>
 
   This library is free software; you can redistribute it and/or modify
   it under the terms of the GNU Lesser General Public License as
@@ -67,7 +67,9 @@ static void *periodic_thread(void *foo);
 static time_t
 gettime(void)
 {
-#ifdef HAVE_CLOCK_GETTIME
+  /* Only use the monotonic clock if we can use it in both gettime and
+     the pthreads condition variable. */
+#if defined(HAVE_CLOCK_GETTIME) && defined(HAVE_PTHREAD_CONDATTR_SETCLOCK)
 
 #ifndef CLOCK_MONOTONIC
 #define CLOCK_MONOTONIC CLOCK_REALTIME
@@ -78,7 +80,7 @@ gettime(void)
   if(clock_gettime(CLOCK_MONOTONIC,&ts)==0)
     return ts.tv_sec;
   else
-#endif /* HAVE_CLOCK_GETTIME */
+#endif /* HAVE_CLOCK_GETTIME && HAVE_PTHREAD_CONDATTR_SETCLOCK */
     return time(NULL);
 }
 
@@ -413,14 +415,17 @@ periodic_start(unsigned int flags)
       return -1;
     }
 
-#ifdef HAVE_PTHREAD_CONDATTR_SETCLOCK
+  /* Only use the monotonic clock if we can use it in both gettime and
+     the pthreads condition variable. */
+#if defined(HAVE_CLOCK_GETTIME) && defined(HAVE_PTHREAD_CONDATTR_SETCLOCK)
+
   if((err=pthread_condattr_setclock(&attr,CLOCK_MONOTONIC)))
     {
       pthread_condattr_destroy(&attr);
       errno=err;
       return -1;
     }
-#endif /* HAVE_PTHREAD_CONDATTR_SETCLOCK */
+#endif /* HAVE_CLOCK_GETTIME && HAVE_PTHREAD_CONDATTR_SETCLOCK */
 
   if((err=pthread_cond_init(&event_cond,&attr)))
     {

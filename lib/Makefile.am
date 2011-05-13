@@ -4,7 +4,6 @@ lib_LTLIBRARIES=libperiodic.la
 
 libperiodic_la_SOURCES=periodic.c
 libperiodic_la_CPPFLAGS=-I$(top_srcdir)/include
-libperiodic_la_LIBADD=-lpthread
 
 # This flag accepts an argument of the form
 # current[:revision[:age]]. So, passing -version-info 3:12:1 sets
