@@ -34,14 +34,12 @@ LT_INIT
 
 # Checks for libraries.
 AC_MSG_CHECKING([for pthreads])
-_save_libs=$LIBS
 LIBS="$_save_libs -lpthread"
 AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <pthread.h>],[pthread_cleanup_push(0,0); pthread_cleanup_pop(0);])],found=yes,found=no)
 AC_MSG_RESULT($found)
 if test $found = no ; then
    AC_MSG_ERROR([periodic requires pthreads])
 fi
-LIBS=$_save_libs
 
 # Checks for header files.
 
@@ -50,7 +48,7 @@ AC_C_CONST
 
 # Checks for library functions.
 AC_SEARCH_LIBS(clock_gettime,rt,AC_DEFINE(HAVE_CLOCK_GETTIME,1,[Have it]))
-AC_SEARCH_LIBS(pthread_condattr_setclock,rt,AC_DEFINE(HAVE_PTHREAD_CONDATTR_SETCLOCK,1,[Have it]))
+AC_SEARCH_LIBS(pthread_condattr_setclock,[rt pthread],AC_DEFINE(HAVE_PTHREAD_CONDATTR_SETCLOCK,1,[Have it]))
 
 AC_ARG_ENABLE(optimization,
    AS_HELP_STRING([--disable-optimization],[disable compiler optimization]),
