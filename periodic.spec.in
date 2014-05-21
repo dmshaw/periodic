@@ -1,9 +1,7 @@
-# $Id$
-
 Summary: Library for repeating periodic events
 Name: periodic
 Version: @PACKAGE_VERSION@
-Release: 1
+Release: 1%{?dist}
 License: LGPL
 Group: System Environment/Libraries
 Source: http://www.jabberwocky.com/software/periodic/periodic-%{version}.tar.gz
