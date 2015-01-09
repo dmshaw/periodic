@@ -1,5 +1,3 @@
-static const char RCSID[]="$Id$";
-
 /*
   periodic - a library for repeating periodic events
   Copyright (C) 2008, 2009, 2011 David Shaw, <dshaw@jabberwocky.com>

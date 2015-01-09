@@ -1,5 +1,3 @@
-static const char RCSID[]="$Id$";
-
 #include <config.h>
 #include <stdio.h>
 #include <unistd.h>
