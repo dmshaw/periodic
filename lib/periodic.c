@@ -1,6 +1,6 @@
 /*
   periodic - a library for repeating periodic events
-  Copyright (C) 2008, 2009, 2011 David Shaw, <dshaw@jabberwocky.com>
+  Copyright (C) 2008, 2009, 2011, 2015 David Shaw, <dshaw@jabberwocky.com>
 
   This library is free software; you can redistribute it and/or modify
   it under the terms of the GNU Lesser General Public License as
@@ -56,7 +56,7 @@ static void (*timewarp_func)(void *);
 static void *timewarp_arg;
 static unsigned int global_flags;
 
-#define debug(_fmt,_vargs...) do {if(global_flags&PERIODIC_DEBUG) fprintf(stderr,(_fmt),##_vargs); } while(0)
+#define debug(_fmt,_vargs...) do {if(global_flags&PERIODIC_DEBUG) fprintf(stderr,"Periodic: "_fmt,##_vargs); } while(0)
 
 static void *periodic_thread(void *foo);
 
