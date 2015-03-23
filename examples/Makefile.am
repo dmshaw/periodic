@@ -1,5 +1,3 @@
-# $Id$
-
 INCLUDES=-I$(top_srcdir)/include
 
 noinst_PROGRAMS=periodic-test

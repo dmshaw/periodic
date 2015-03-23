@@ -1,5 +1,3 @@
-# $Id$
-
 lib_LTLIBRARIES=libperiodic.la
 
 libperiodic_la_SOURCES=periodic.c

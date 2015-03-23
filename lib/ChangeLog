@@ -5,5 +5,3 @@
 	time.  Change all callers from time(NULL) to this.
 	(periodic_start): Use the monotonic clock in the event condition
 	as well.
-
-$Id$
