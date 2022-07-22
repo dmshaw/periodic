@@ -1,6 +1,6 @@
 /*
   periodic - a library for repeating periodic events
-  Copyright (C) 2008, 2009 David Shaw, <dshaw@jabberwocky.com>
+  Copyright (C) 2008, 2009, 2022 David Shaw, <dshaw@jabberwocky.com>
 
   This library is free software; you can redistribute it and/or modify
   it under the terms of the GNU Lesser General Public License as
@@ -51,24 +51,23 @@ extern "C" {
 #define PERIODIC_ONESHOT 2
 
 struct periodic_event_t *periodic_add(unsigned int interval,unsigned int flags,
-				      void (*func)(void *),void *arg);
+                                      void (*func)(void *),void *arg);
 
 /*
   Call this function a remove an event from the queue.  Pass the
   struct periodic_event_t pointer returned by periodic_add().  Returns
   0 for success and -1 for failure (and sets errno).
- */
+*/
 
 int periodic_remove(struct periodic_event_t *remove);
 
 /*
-  Call this function to start the periodic events.  Concurrency is how
-  many periodic events can happen at once.  If multiple events happen
-  at the same moment and concurrency is not high enough, the events
-  will happen one after another rather than concurrently.  The
-  NORETURN flag makes periodic_start() not return - the calling thread
-  becomes one of the pool used to run periodic events.
- */
+  Call this function to start the periodic events.  The NORETURN flag
+  makes periodic_start() not return - the calling thread becomes one
+  of the pool used to run periodic events.  The DEBUG flag causes the
+  library to output debugging information.  Flags may be ORed
+  together.
+*/
 
 #define PERIODIC_DEBUG    1
 #define PERIODIC_NORETURN 2
@@ -80,7 +79,7 @@ int periodic_start(unsigned int flags);
   events from the queue.  PERIODIC_WAIT means to wait for all threads
   to exit.  Otherwise, the threads are signalled to exit and may exit
   after periodic_stop() returns.
- */
+*/
 
 #define PERIODIC_WAIT 1
 
@@ -112,7 +111,7 @@ int periodic_stop(unsigned int flags);
 */
 
 int periodic_timewarp(unsigned int interval,unsigned int warptime,
-		      void (*func)(void *),void *arg);
+                      void (*func)(void *),void *arg);
 
 #ifdef __cplusplus
 }
